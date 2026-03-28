@@ -2,8 +2,8 @@ from visualizeur_sim import InitWindow
 
 
 def main() -> None:
-    init_screen = InitWindow()
-    init_screen.run_game()
+    run_sim = InitWindow(1200, 600)
+    run_sim.start_sim()
 
 
 if __name__ == "__main__":

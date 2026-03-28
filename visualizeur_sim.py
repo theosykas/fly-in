@@ -2,7 +2,7 @@ import pygame
 
 
 class InitWindow:
-    def __init__(self, height: int = 1200, width: int = 700) -> None:
+    def __init__(self, height: int, width: int) -> None:
         pygame.init()
         self.height = height
         self.width = width
@@ -11,7 +11,7 @@ class InitWindow:
         pygame.display.set_caption("FLY-IN")
         self.running_mode = True
 
-    def run_game(self) -> None:
+    def start_sim(self) -> None:
         while self.running_mode:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
