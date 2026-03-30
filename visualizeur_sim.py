@@ -1,10 +1,12 @@
 from read_map import Zone, Connection, Reader
 import pygame
+import math
 
 
 class InitWindow:
     def __init__(self, height: int, width: int, map_r: Reader) -> None:
         pygame.init()
+        # self.mousse_position = (0, 0)
         self.height = height
         self.width = width
         self.map_r = map_r
@@ -12,6 +14,7 @@ class InitWindow:
         self.clock_fps = pygame.time.Clock()
         pygame.display.set_caption("FLY-IN")
         self.zoom = 50
+        self.BG_COLOR: str = "grey0"
         self.running_mode = True
 
     def draw_network(self) -> None:
@@ -34,10 +37,19 @@ class InitWindow:
 
     def draw_circle(self) -> None:
         for _, zone in self.map_r.zone.items():
+            mousse_p = pygame.mouse.get_pos()
+            radius = 10
             pos_x = (zone.x * self.zoom) + (self.width // 4)
             pos_y = (zone.y * self.zoom) + (self.height // 4)
+            dist_x = mousse_p[0] - pos_x
+            dist_y = mousse_p[1] - pos_y
+            is_hooverd = math.hypot(dist_x, dist_y) < radius
+            if is_hooverd:
+                color = (85, 118, 171)
+            else:
+                color = (113, 135, 171)
             pygame.draw.circle(self.screen,
-                               (113, 135, 171),
+                               color,
                                (pos_x, pos_y),
                                10)
 
@@ -46,7 +58,9 @@ class InitWindow:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running_mode = False
-            self.screen.fill("grey0")
+                elif event.type == pygame.MOUSEMOTION:
+                    self.mousse_position = event.pos
+            self.screen.fill(self.BG_COLOR)
             self.draw_network()
             self.draw_circle()
             pygame.display.flip()
