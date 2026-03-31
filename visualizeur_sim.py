@@ -3,17 +3,17 @@ import pygame as py
 import math
 
 
-class InitWindow:
+class Visualizeur:
     def __init__(self, width: int, height: int, map_read: Reader) -> None:
         py.init()
-        # self.mousse_position = (0, 0)
         self.height = height
         self.width = width
         self.map_read = map_read
-        self.screen = py.display.set_mode((self.width, self.height))  # tuple set_mode
+        self.screen = py.display.set_mode(
+            (self.width, self.height), py.RESIZABLE)
         self.clock_fps = py.time.Clock()
         py.display.set_caption("FLY-IN")
-        self.zoom = 100
+        self.zoom = 65
         self.BG_COLOR: str = "grey0"
         self.running_mode = True
 
@@ -39,6 +39,7 @@ class InitWindow:
             pos_y = (zone.y * self.zoom) + (self.height // 4)
             dist_x = mousse_p[0] - pos_x
             dist_y = mousse_p[1] - pos_y
+            # distance = √(dist_x² + dist_y²) hypot
             is_hooverd = math.hypot(dist_x, dist_y) < radius
             if is_hooverd:
                 color = (85, 118, 171)
@@ -53,6 +54,7 @@ class InitWindow:
                     self.running_mode = False
                 elif event.type == py.MOUSEMOTION:
                     self.mousse_position = event.pos
+            self.width, self.height = self.screen.get_size()  # RESIZE
             self.screen.fill(self.BG_COLOR)
             self.draw_network()
             self.draw_circle()

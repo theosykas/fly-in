@@ -8,10 +8,10 @@ class MetadataConnection:
 
 class MetadataHub:
     def __init__(self, color: str = "grey", capacity: int = 1):
-        self.color = color
-        self.type_zone: str = "normal"
-        self.max_drones: int = capacity
         self.is_blocked_zone: bool = False
+        self.max_drones: int = capacity
+        self.type_zone: str = "normal"
+        self.color = color
 
 
 class Connection:
@@ -29,19 +29,19 @@ class Zone:
 
 class Drone:
     def __init__(self, ids: str) -> None:
-        self.ids: str = ids
         self.current_zone: str = ""
-        self.next_zone: str = ""
         self.is_fly: bool = False
+        self.next_zone: str = ""
+        self.ids: str = ids
 
 
 class Reader:
     def __init__(self, file_path: str):
-        self.file_path = file_path
-        self.drones: List[Drone] = []
-        self.nb_drones: int = 0
-        self.zone: Dict[str, Zone] = {}
         self.connection: List[Connection] = []
+        self.zone: Dict[str, Zone] = {}
+        self.drones: List[Drone] = []
+        self.file_path = file_path
+        self.nb_drones: int = 0
 
     def parse_map(self) -> None:
         valid_hub: tuple = (("hub:", "start_hub:", "end_hub:"))
