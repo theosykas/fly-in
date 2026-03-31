@@ -18,6 +18,7 @@ class Connection:
     def __init__(self, z_1: str, z_2: str) -> None:
         self.z_1 = z_1
         self.z_2 = z_2
+        self.metadata = None
 
 
 class Zone:
@@ -25,6 +26,7 @@ class Zone:
         self.name = name
         self.x: int = x
         self.y: int = y
+        self.metadata = None
 
 
 class Drone:
@@ -61,49 +63,83 @@ class Reader:
                         for id in range(self.nb_drones):
                             drones_ids = f"D{id + 1}"
                             self.drones.append(Drone(drones_ids))
+                    # hub_parts
                     elif line.startswith(valid_hub):
-                        name_hub, pos = line.split(":", 1)
-                        clean_hub = pos.split('[')[0].strip().split()  # stop to metadata
+                        name_hub, content = line.split(":", 1)
+                        if '[' in content:
+                            parts = content.split('[', 1)
+                            data_hub = parts[0].strip()
+                            metadata_hub = parts[1].rstrip(']').strip()
+                        else:
+                            data_hub = content.strip()
+                            metadata_hub = ""
                         if '-' in name_hub:
                             ERROR_MSG = "you cant have dash in zone"
                             raise ValueError(ERROR_MSG)
-                        if len(clean_hub) < 3:
+                        if len(data_hub) < 3:
                             ERROR_MSG = "[Error] missing positional argument"
                             ERROR_MSG += "<x> or <y>"
                             raise ValueError(ERROR_MSG)
-                        hub_type = clean_hub[0]
+                        hub_parts = data_hub.split()
+                        hub_name = hub_parts[0]
                         try:
-                            x_pos = int(clean_hub[1])
-                            y_pos = int(clean_hub[2])
+                            x_pos = int(hub_parts[1])
+                            y_pos = int(hub_parts[2])
                         except ValueError:
                             raise ValueError("the hub must be int <x> <y>")
-                        create_zone = Zone(name=hub_type, x=x_pos, y=y_pos)
+                        curr_metadata = MetadataHub()  # recover meta
+                        if metadata_hub:
+                            metadata_parts = metadata_hub.split()
+                            for p in metadata_parts:
+                                key, value = p.split('=', 1)
+                                if '=' in p:
+                                    if key == 'color':
+                                        curr_metadata.color = value
+                                    elif key == 'max_drones':
+                                        curr_metadata.max_drones = int(value)
+                        create_zone = Zone(name=hub_name, x=x_pos, y=y_pos)
+                        create_zone.metadata = curr_metadata  # add attribue metadata
                         if name_hub == "start_hub":
-                            self.start_zone = hub_type
+                            self.start_zone = hub_name
                         elif name_hub == "end_hub":
-                            self.end_zone = hub_type
-                        self.zone[hub_type] = create_zone
+                            self.end_zone = hub_name
+                        self.zone[hub_name] = create_zone
+                    # connection parts
                     elif line.startswith("connection:"):
                         _, connection_parts = line.split(":", 1)
-                        clean_connection = connection_parts.split('[')[0].strip()
-                        zone = clean_connection.split('-')
-                        if len(zone) != 2:
-                            ERROR_MSG = "[Error] you need two"
-                            ERROR_MSG = " zone to connection"
-                            raise ValueError(ERROR_MSG)
-                        zone_1 = zone[0]
-                        zone_2 = zone[1]
-                        if '-' not in clean_connection:
+                        if '[' in connection_parts:
+                            parts = connection_parts.split('[', 1)
+                            data_connections = parts[0].strip()
+                            metadata = parts[1].rstrip(']').strip()  # interieur crochet []
+                        else:
+                            data_connections = connection_parts.strip()
+                            metadata = ""
+                        if '-' not in data_connections:
                             ERROR_MSG = "[Error] you must have dash"
                             ERROR_MSG += "in connection"
                             raise ValueError(ERROR_MSG)
+                        zone = data_connections.split('-')
+                        if len(zone) != 2:
+                            ERROR_MSG = "[Error] you need two"
+                            ERROR_MSG += " zone to connection"
+                            raise ValueError(ERROR_MSG)
+                        zone_1 = zone[0].strip()
+                        zone_2 = zone[1].strip()
+                        curr_metadata = MetadataConnection()
+                        if metadata:
+                            meta_parts = metadata.split()
+                            for p in meta_parts:
+                                if '=' in p:
+                                    key, value = p.split('=', 1)
+                                    if key == 'max_link_capacity':
+                                        curr_metadata.max_link = value
                         if zone_1 in self.zone and zone_2 in self.zone:
-                            self.connection.append(Connection(zone_1, zone_2))
-                        bidirectional_create = Connection(
-                            z_1=zone_1,
-                            z_2=zone_2)
-                        if bidirectional_create not in self.connection:
-                            self.connection.append(bidirectional_create)
+                            bidirectional_create = Connection(
+                                z_1=zone_1,
+                                z_2=zone_2)
+                            bidirectional_create.metadata = curr_metadata
+                            if bidirectional_create not in self.connection:
+                                self.connection.append(bidirectional_create)
         except FileNotFoundError:
             print('Error file is not found')
         except Exception as e:

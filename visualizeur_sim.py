@@ -35,16 +35,20 @@ class Visualizeur:
         mousse_p = py.mouse.get_pos()
         for _, zone in self.map_read.zone.items():
             radius = 10
+            color = (85, 118, 171)  # no metadata base_color
             pos_x = (zone.x * self.zoom) + (self.width // 4)
             pos_y = (zone.y * self.zoom) + (self.height // 4)
             dist_x = mousse_p[0] - pos_x
             dist_y = mousse_p[1] - pos_y
+            if zone.metadata:  # metacolor
+                try:
+                    color = zone.metadata.color
+                except ValueError:
+                    pass  # color default
             # distance = √(dist_x² + dist_y²) hypot
             is_hooverd = math.hypot(dist_x, dist_y) < radius
             if is_hooverd:
                 color = (85, 118, 171)
-            else:
-                color = (113, 135, 171)
             py.draw.circle(self.screen, color, (pos_x, pos_y), 12)
 
     def start_sim(self) -> None:
