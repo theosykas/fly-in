@@ -46,18 +46,20 @@ class Visualizeur:
         self.BG_COLOR: str = "grey0"
         self.running_mode = True
         self.rainbow = FrameRainbow("frame_raindow", (40, 40), speed_frame=2.5)
+        self.cam_x: int = 0
+        self.cam_y: int = 0
 
     def draw_network(self) -> None:
         for co in self.map_read.connection:
             z1 = self.map_read.zone[co.z_1]
             z2 = self.map_read.zone[co.z_2]
             start_hub = (
-                (z1.x * self.zoom) + (self.width // 4),
-                (z1.y * self.zoom) + (self.height // 4),
+                (z1.x * self.zoom) + (self.width // 4) + self.cam_x,
+                (z1.y * self.zoom) + (self.height // 4) + self.cam_y,
             )
             end_hub = (
-                (z2.x * self.zoom) + (self.width // 4),
-                (z2.y * self.zoom) + (self.height // 4),
+                (z2.x * self.zoom) + (self.width // 4) + self.cam_x,
+                (z2.y * self.zoom) + (self.height // 4) + self.cam_y,
             )
             py.draw.line(self.screen, "white", start_hub, end_hub, 2)
 
@@ -67,8 +69,8 @@ class Visualizeur:
         for _, zone in self.map_read.zone.items():
             radius = 10
             color = (85, 118, 171)  # no metadata base_color
-            pos_x = (zone.x * self.zoom) + (self.width // 4)
-            pos_y = (zone.y * self.zoom) + (self.height // 4)
+            pos_x = (zone.x * self.zoom) + (self.width // 4) + self.cam_x
+            pos_y = (zone.y * self.zoom) + (self.height // 4) + self.cam_y
             dist_x = mousse_p[0] - pos_x
             dist_y = mousse_p[1] - pos_y
             if zone.metadata:  # metacolor
@@ -89,11 +91,28 @@ class Visualizeur:
             py.draw.circle(self.screen, color, (pos_x, pos_y), 12)
 
     def start_sim(self) -> None:
+        click = py.mouse.get_pressed()
+        mous_pos = py.mouse.get_pos()
+        is_drag = False
         while self.running_mode:
             for event in py.event.get():
                 if event.type == py.QUIT:
                     self.running_mode = False
+                # 1 == click_left
+                elif event.type == py.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        mouse_x, mouse_y = event.pos
+                        is_drag = True
+                        offset_x = self.cam_x - mouse_x
+                        offset_y = self.cam_y - mouse_y
+                elif event.type == py.MOUSEBUTTONUP:
+                    if event.button == 1:
+                        is_drag = False
                 elif event.type == py.MOUSEMOTION:
+                    if is_drag:
+                        mouse_x, mouse_y = event.pos
+                        self.cam_x = mouse_x + offset_x
+                        self.cam_y = mouse_y + offset_y
                     self.mousse_position = event.pos
             self.width, self.height = self.screen.get_size()  # RESIZE
             self.screen.fill(self.BG_COLOR)
