@@ -44,9 +44,17 @@ class Reader:
         self.drones: List[Drone] = []
         self.file_path = file_path
         self.nb_drones: int = 0
+        self.zone_type: Dict[str, str] = {}
+        self.adj_neigboor: Dict[str, List[str]] = {}
+
+    def get_neighboor(self, zone_name: str) -> str:
+        return self.adj_neigboor.get(zone_name, [])
+
+    def get_zone_type(self, zone_name: str) -> str:
+        return self.zone_type.get(zone_name, "normal")
 
     def parse_map(self) -> None:
-        valid_hub: tuple = (("hub:", "start_hub:", "end_hub:"))
+        valid_hub: tuple = ("hub:", "start_hub:", "end_hub:")
         try:
             with open(self.file_path, 'r') as file:
                 for line in file:
@@ -91,10 +99,17 @@ class Reader:
                         if metadata_hub:
                             metadata_parts = metadata_hub.split()
                             for p in metadata_parts:
+                                valid_zone = {'blocked', 'normal', 'restricted', 'priority'}
                                 key, value = p.split('=', 1)
                                 if '=' in p:
                                     if key == 'color':
                                         curr_metadata.color = value
+                                    elif key == 'zone':
+                                        if value not in valid_zone:
+                                            raise ValueError('Error invalid zone input')
+                                        curr_metadata.type_zone = value  # zone courrante
+                                        if value == 'blocked':
+                                            curr_metadata.is_blocked_zone = True  # zone act blocked
                                     elif key == 'max_drones':
                                         curr_metadata.max_drones = int(value)
                         create_zone = Zone(name=hub_name, x=x_pos, y=y_pos)
@@ -104,6 +119,7 @@ class Reader:
                         elif name_hub == "end_hub":
                             self.end_zone = hub_name
                         self.zone[hub_name] = create_zone
+                        self.zone_type[hub_name] = curr_metadata.type_zone
                     # connection parts
                     elif line.startswith("connection:"):
                         _, connection_parts = line.split(":", 1)
@@ -125,6 +141,15 @@ class Reader:
                             raise ValueError(ERROR_MSG)
                         zone_1 = zone[0].strip()
                         zone_2 = zone[1].strip()
+                        if zone_1 not in self.adj_neigboor:
+                            self.adj_neigboor[zone_1] = []
+                        if zone_2 not in self.adj_neigboor:
+                            self.adj_neigboor[zone_2] = []
+                        # bidirectional
+                        if zone_1 not in self.adj_neigboor[zone_2]:  # check si zone_1 est dans la zone_2
+                            self.adj_neigboor[zone_2].append(zone_1)
+                        if zone_2 not in self.adj_neigboor[zone_1]:
+                            self.adj_neigboor[zone_1].append(zone_2)
                         curr_metadata = MetadataConnection()
                         if metadata:
                             meta_parts = metadata.split()

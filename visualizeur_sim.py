@@ -1,5 +1,6 @@
 from read_map import Reader
 from typing import List
+import solver
 import pygame as py
 import math
 import os
@@ -45,7 +46,7 @@ class FrameCircle:
 
 
 class Visualizeur:
-    def __init__(self, width: int, height: int, map_read: Reader) -> None:
+    def __init__(self, width: int, height: int, map_read: Reader, path: solver) -> None:
         py.init()
         self.height = height
         self.width = width
@@ -64,6 +65,7 @@ class Visualizeur:
         self.green = FrameCircle("green_texture", 42, speed_frame=1.5)
         self.cam_x: float = 0.0
         self.cam_y: float = 0.0
+        self.solver = solver
 
     def draw_network(self) -> None:
         line_zoom = max(2, int(2 * self.zoom / 90.0))  # 2 epesseur

@@ -1,6 +1,6 @@
 PYTHON = uv run python3
 UV = uv
-MAIN_FILES = main.py
+DEFAULT_MAP = main.py maps/challenger/01_the_impossible_dream.txt
 
 all: install run
 
@@ -10,7 +10,7 @@ install:
 
 run:
 	@echo 'start fly simulation'
-	$(PYTHON) $(MAIN_FILES)
+	$(PYTHON) $(DEFAULT_MAP)
 
 clean:
 	@echo 'remove all artifacts'
