@@ -12,13 +12,7 @@ def main() -> None:
         map_dir = sys.argv[1]
         reader = Reader(map_dir)
         reader.parse_map()
-        solver_dijkstra = Solver(reader=reader)
-        find_path = solver_dijkstra.dijkstra()
-        if find_path:
-            print("path: " + " -> ".join(find_path))
-        else:
-            print('path not found')
-        run_sim = Visualizeur(1200, 600, map_read=reader, path=find_path)
+        run_sim = Visualizeur(1200, 600, map_read=reader)
         run_sim.start_sim()
     except Exception as err:
         print(f'Error: {err}')

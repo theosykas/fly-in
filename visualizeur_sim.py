@@ -1,7 +1,7 @@
 from read_map import Reader
 from typing import List
-import solver
 import pygame as py
+from solver import Solver
 import math
 import os
 
@@ -45,8 +45,42 @@ class FrameCircle:
         return self.frames[self.index_pos]
 
 
+class DronePath:
+    def __init__(self, path_pos: List[tuple], speed_sim: float = 0.2) -> None:
+        self.path_pos = path_pos
+        self.speed_sim = speed_sim
+        self.pos_x, self.pos_y = self.path_pos[0]
+        self.current_step: int = 0
+        self.img_drone = py.image.load("drone.png").convert_alpha()
+        self.img_drone = py.transform.scale(self.img_drone, (30, 30))
+        self.end_path = False
+
+    def update_path(self):
+        if self.current_step >= len(self.path_pos) - 1:
+            self.end_path = True
+            return
+        target_x, target_y = self.path_pos[self.current_step + 1]  # une pos en avance
+        dx = target_x - self.pos_x
+        dy = target_y - self.pos_y
+        dist_hypot = math.hypot(dx, dy)  # dist entre chaques node
+        if dist_hypot <= self.speed_sim:  # colision point
+            self.pos_x, self.pos_y = target_x, target_y
+            self.current_step += 1
+        else:
+            self.pos_x += (dx / dist_hypot) * self.speed_sim
+            self.pos_y += (dy / dist_hypot) * self.speed_sim
+
+    def draw_path(self, screen: py.Surface, zoom, cam_x, cam_y, widht, height):
+        if self.end_path:
+            return  # no draw
+        draw_x = (self.pos_x * zoom) + (widht // 4) + cam_x
+        draw_y = (self.pos_y * zoom) + (height // 4) + cam_y
+        rect_drone = self.img_drone.get_rect(center=(int(draw_x), int(draw_y)))
+        screen.blit(self.img_drone, rect_drone)
+
+
 class Visualizeur:
-    def __init__(self, width: int, height: int, map_read: Reader, path: solver) -> None:
+    def __init__(self, width: int, height: int, map_read: Reader) -> None:
         py.init()
         self.height = height
         self.width = width
@@ -65,10 +99,34 @@ class Visualizeur:
         self.green = FrameCircle("green_texture", 42, speed_frame=1.5)
         self.cam_x: float = 0.0
         self.cam_y: float = 0.0
-        self.solver = solver
+        self.solver = Solver
+        self.path_dijkstra: List = []  # stocker le path generer par algo
+        self.start_drone: List[DronePath] = []
+
+    def start_solve(self) -> None:
+        solve = self.solver(self.map_read)
+        path = solve.dijkstra()
+        print(path)
+        if not path:
+            print('path not found')
+            self.start_drone = []
+            return
+        path_coord = []
+        for name in path:
+            zone = self.map_read.zone[name]
+            path_coord.append((zone.x, zone.y))
+        if not path_coord:
+            return
+        self.start_drone = []
+        for shift in range(len(self.map_read.drones)):
+            new_drone = DronePath(path_coord, 0.03)
+            if shift < len(path_coord):
+                new_drone.current_step = shift
+                new_drone.pos_x, new_drone.pos_y = path_coord[shift]
+            self.start_drone.append(new_drone)
 
     def draw_network(self) -> None:
-        line_zoom = max(2, int(2 * self.zoom / 90.0))  # 2 epesseur
+        line_zoom = max(2, int(2 * self.zoom / 90.0))
         for co in self.map_read.connection:
             z1 = self.map_read.zone[co.z_1]
             z2 = self.map_read.zone[co.z_2]
@@ -136,6 +194,7 @@ class Visualizeur:
             py.draw.circle(self.screen, color, (pos_x, pos_y), radius_dynamic)
 
     def start_sim(self) -> None:
+        self.start_solve()
         is_drag = False
         try:
             print("Pressed (CRTL + C) to interrupt program")
@@ -164,7 +223,6 @@ class Visualizeur:
                         self.zoom = min(445.0, self.zoom)  # ++ zoom
                         self.cam_x = adj_pos_x - (x_pos * self.zoom)
                         self.cam_y = adj_pos_y - (y_pos * self.zoom)  # track et re calcule
-                        print(self.zoom)
                     elif event.type == py.MOUSEMOTION:
                         if is_drag:
                             mouse_x, mouse_y = event.pos
@@ -175,6 +233,14 @@ class Visualizeur:
                 self.screen.fill(self.BG_COLOR)
                 self.draw_network()
                 self.draw_circle()
+                for d in self.start_drone:
+                    d.update_path()
+                    d.draw_path(self.screen,
+                                self.zoom,
+                                self.cam_x,
+                                self.cam_y,
+                                self.width,
+                                self.height)
                 py.display.flip()
                 self.clock_fps.tick(60)
             py.quit()

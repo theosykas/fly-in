@@ -24,14 +24,13 @@ class Solver:
                 return find_path
             visited.add(current_node)
             for neighboor in self.reader.get_neighboor(current_node):
+                cost_zone = 1
                 if neighboor not in visited:
                     zone_type = self.reader.get_zone_type(neighboor)
                     if zone_type == 'blocked':
                         continue
                     elif zone_type == 'restricted':
                         cost_zone = 2
-                    else:
-                        cost_zone = 1
                     update_cost = current_cost + cost_zone
                     heappush(priority_queue, (update_cost,
                                               neighboor,
