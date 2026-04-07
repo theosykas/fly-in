@@ -51,6 +51,7 @@ class DronePath:
         self.speed_sim = speed_sim
         self.pos_x, self.pos_y = self.path_pos[0]
         self.current_step: int = 0
+        self.drone_pos: int = 0
         self.img_drone = py.image.load("drone.png").convert_alpha()
         self.img_drone = py.transform.scale(self.img_drone, (30, 30))
         self.end_path = False
@@ -77,6 +78,12 @@ class DronePath:
         draw_y = (self.pos_y * zoom) + (height // 4) + cam_y
         rect_drone = self.img_drone.get_rect(center=(int(draw_x), int(draw_y)))
         screen.blit(self.img_drone, rect_drone)
+
+    def start_turn(self):
+        if self.drone_pos < len(self.path_pos) - 1:
+            self.current_step += 1
+            self.pos_x, self.pos_y = self.path_coord[self.drone_pos]
+        return None
 
 
 class Visualizeur:

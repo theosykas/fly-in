@@ -21,6 +21,7 @@ class Solver:
             if current_node in visited:
                 continue  # pass node visited
             if current_node == end_hub:
+                print(find_path)
                 return find_path
             visited.add(current_node)
             for neighboor in self.reader.get_neighboor(current_node):
