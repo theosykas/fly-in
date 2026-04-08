@@ -1,5 +1,5 @@
 from visualizeur_sim import Visualizeur
-from solver import Solver
+# from solver import Solver
 from read_map import Reader
 import sys
 
@@ -14,8 +14,6 @@ def main() -> None:
         reader.parse_map()
         run_sim = Visualizeur(1200, 600, map_read=reader)
         run_sim.start_sim()
-        # for turn in 
-            # print(turn)
     except Exception as err:
         print(f'Error: {err}')
 

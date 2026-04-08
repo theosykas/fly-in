@@ -99,14 +99,18 @@ class Reader:
                         if metadata_hub:
                             metadata_parts = metadata_hub.split()
                             for p in metadata_parts:
-                                valid_zone = {'blocked', 'normal', 'restricted', 'priority'}
+                                valid_zone = {'blocked',
+                                              'normal',
+                                              'restricted',
+                                              'priority'}
                                 key, value = p.split('=', 1)
                                 if '=' in p:
                                     if key == 'color':
                                         curr_metadata.color = value
                                     elif key == 'zone':
                                         if value not in valid_zone:
-                                            raise ValueError('Error invalid zone input')
+                                            raise ValueError(
+                                                'Error invalid zone input')
                                         curr_metadata.type_zone = value  # zone courrante
                                         if value == 'blocked':
                                             curr_metadata.is_blocked_zone = True  # zone act blocked

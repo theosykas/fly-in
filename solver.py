@@ -7,6 +7,8 @@ class Solver:
     def __init__(self, reader: Reader) -> None:
         self.reader = reader
         self.path: Dict[str, List[str]] = {}  # drone id + path
+        self.step: Dict[str, List[str]] = {}
+        self.is_finished: Set[str] = set()
 
     def dijkstra(self) -> List[str]:  # a - c - d - f short path
         start_hub = self.reader.start_zone
@@ -37,5 +39,34 @@ class Solver:
                                               neighboor,
                                               find_path + [neighboor]))
         return []  # no path
+
+    def init_drone(self) -> None:
+        path_find = self.dijkstra()
+        if not path_find:
+            print('Error - path not find')
+            return
+        for drone in self.reader.drones:
+            self.path[drone.ids] = path_find
+            self.step[drone.ids] = 0
+            drone.current_zone = path_find[0]
+            drone.is_fly = True
+        return None
+
+    def turn(self) -> bool:
+        moving = False
+        for drone in self.reader.drones:
+            if drone.ids in self.is_finished:
+                continue
+            path = self.path.get(drone.ids, [])
+            next_step = self.step[drone.ids] + 1
+            if next_step < len(path):
+                drone.current_zone = path[next_step]
+                drone.next_zone = path[next_step + 1]
+                drone.is_fly = True
+                self.step[drone.ids] = next_step
+                moving = True
+            else:
+                drone.is_fly = False
+        return moving
 
 # heappush: Ajoute un élément à la file d'attente avec sa priorité associée.
