@@ -111,7 +111,7 @@ class Visualizeur:
         zoom_avg = self.zoom / 90.0
         radius_dynamic = max(5, int(12 * (zoom_avg)))
         for _, zone in self.map_read.zone.items():
-            color = (39, 69, 41)  # no metadata base_color / olive
+            color = (39, 69, 41) 
             pos_x = (zone.x * self.zoom) + (self.width // 4) + self.cam_x
             pos_y = (zone.y * self.zoom) + (self.height // 4) + self.cam_y
             dist_x = mousse_p[0] - pos_x
@@ -199,6 +199,7 @@ class Visualizeur:
                                        move_delay):
                     moving = self.solver.turn()
                     self.current_turn += 1
+                    print(f"turn count = {self.current_turn}")
                     last_move = current_time
                     if not moving:
                         self.sim_solve = False

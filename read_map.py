@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class MetadataConnection:
@@ -26,7 +26,7 @@ class Zone:
         self.name = name
         self.x: int = x
         self.y: int = y
-        self.metadata = None
+        self.metadata: Optional[MetadataHub] = None
 
 
 class Drone:
@@ -46,6 +46,16 @@ class Reader:
         self.nb_drones: int = 0
         self.zone_type: Dict[str, str] = {}
         self.adj_neigboor: Dict[str, List[str]] = {}
+
+    def max_link_cap(self):
+        pass
+
+    def max_drone_cap(self, zone_name: str) -> int:
+        default_cap = 50
+        zone_cap = self.zone.get(zone_name)
+        if zone_cap and zone_cap.metadata:
+            return zone_cap.metadata.max_drones
+        return default_cap
 
     def get_neighboor(self, zone_name: str) -> str:
         return self.adj_neigboor.get(zone_name, [])
