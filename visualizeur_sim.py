@@ -101,7 +101,12 @@ class Visualizeur:
                 (z2.x * self.zoom) + (self.width // 4) + self.cam_x,
                 (z2.y * self.zoom) + (self.height // 4) + self.cam_y,
             )
-            py.draw.line(self.screen, (183, 189, 248),
+            if co.drones_transit:
+                # print(f'LIEN ACTIF: {co.z_1} -> {co.z_2} | drone {co.drones_transit}')
+                color = (101, 143, 112)
+            else:
+                color = (183, 189, 248)
+            py.draw.line(self.screen, color,
                          start_hub, end_hub, line_zoom)
 
     def draw_circle(self) -> None:
@@ -111,7 +116,7 @@ class Visualizeur:
         zoom_avg = self.zoom / 90.0
         radius_dynamic = max(5, int(12 * (zoom_avg)))
         for _, zone in self.map_read.zone.items():
-            color = (39, 69, 41) 
+            color = (39, 69, 41)
             pos_x = (zone.x * self.zoom) + (self.width // 4) + self.cam_x
             pos_y = (zone.y * self.zoom) + (self.height // 4) + self.cam_y
             dist_x = mousse_p[0] - pos_x

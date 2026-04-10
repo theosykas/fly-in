@@ -19,6 +19,7 @@ class Connection:
         self.z_1 = z_1
         self.z_2 = z_2
         self.metadata = None
+        self.drones_transit: List[str] = []
 
 
 class Zone:
@@ -47,6 +48,7 @@ class Reader:
         self.nb_drones: int = 0
         self.zone_type: Dict[str, str] = {}
         self.adj_neigboor: Dict[str, List[str]] = {}
+        self.connection_type: Dict[str, str] = {}
 
     def max_link_cap(self):
         pass
@@ -63,6 +65,12 @@ class Reader:
 
     def get_zone_type(self, zone_name: str) -> str:
         return self.zone_type.get(zone_name, "normal")
+
+    def get_connection(self, z1: str, z2: str) -> Optional[Connection]:
+        for co in self.connection:
+            if (co.z_1 == z1 and co.z_2 == z2) or (co.z_1 == z2 and co.z_2 == z1):
+                return co
+        return None
 
     def parse_map(self) -> None:
         valid_hub: tuple = ("hub:", "start_hub:", "end_hub:")
