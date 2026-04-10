@@ -8,8 +8,9 @@ class Solver:
         self.reader = reader
         self.path: Dict[str, List[str]] = {}  # drone id + path
         self.step: Dict[str, List[str]] = {}
-        self.is_finished: Set[str] = set()
         self.occupacy: Dict[str, int] = {}
+        self.is_finished: Set[str] = set()
+        self.wait_restricted: Dict[str, int] = {}
 
     def dijkstra(self) -> List[str]:  # a - c - d - f short path
         start_hub = self.reader.start_zone
@@ -48,7 +49,6 @@ class Solver:
             return
         nb_drones = self.reader.start_zone
         self.occupacy = {nb_drones: len(self.reader.drones)}
-        # start: 25
         for _, drone in enumerate(self.reader.drones):
             self.path[drone.ids] = path_find
             self.step[drone.ids] = 0
@@ -61,6 +61,10 @@ class Solver:
         for drone in self.reader.drones:
             if drone.ids in self.is_finished:
                 continue
+            if self.wait_restricted.get(drone.ids, 0) > 0:
+                self.wait_restricted[drone.ids] -= 1
+                moving = True
+                continue
             if self.step[drone.ids] < 0:  # step == -i (d0->d1->d2)
                 self.step[drone.ids] += 1  # step (-) ++
                 moving = True  # sim continue drone wait
@@ -68,7 +72,6 @@ class Solver:
             path = self.path.get(drone.ids, [])  # [start, gate_1 ....]
             current_pos = self.step[drone.ids]
             next_step = current_pos + 1  # prochaine case
-
             if next_step < len(path):  # step == 2 path[2]
                 next_zone = path[next_step]
                 current_zone = path[current_pos]
@@ -82,18 +85,14 @@ class Solver:
                     self.step[drone.ids] = next_step
                     drone.current_zone = next_zone
                     moving = True
+                    zone_cost = self.reader.get_zone_type(next_zone)
+                    if zone_cost == "restricted":
+                        wait_cost = 2
+                        self.wait_restricted[drone.ids] = wait_cost - 1  # -1 == entre area
+                        print(f"cost zone {drone.ids} {wait_cost}")
                 else:
                     print(f"blocked {drone.ids} wait before {next_zone}")
                     drone.is_fly = False
-                    moving = True
-                zone_cost = self.reader.get_zone_type(next_zone)
-                if zone_cost == "restricted":
-                    wait_cost = 2
-                else:
-                    wait_cost = 1
-                self.step[drone.ids] = next_step
-                self.step[drone.ids] = next_step - (wait_cost - 1)
-                print(f"cost zone {drone.ids} {wait_cost}")
             else:
                 drone.is_fly = False
                 self.is_finished.add(drone.ids)

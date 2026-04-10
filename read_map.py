@@ -35,6 +35,7 @@ class Drone:
         self.is_fly: bool = False
         self.next_zone: str = ""
         self.ids: str = ids
+        self.wait_turn: int = -1
 
 
 class Reader:
