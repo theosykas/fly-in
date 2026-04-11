@@ -203,8 +203,8 @@ class Visualizeur:
                 if self.sim_solve and (current_time - last_move >
                                        move_delay):
                     moving = self.solver.turn()
-                    self.current_turn += 1
                     print(f"turn count = {self.current_turn}")
+                    self.current_turn += 1
                     last_move = current_time
                     if not moving:
                         self.sim_solve = False

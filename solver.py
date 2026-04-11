@@ -61,6 +61,38 @@ class Solver:
                 blocked_zone.add(inter_zone)
         return paths
 
+    def simulate_turn_count(self, paths: List[List[str]]) -> int:
+        turn_count = 0
+        wait_restrict = 0
+        current_step = 0
+        while turn_count < 1000:
+            turn_count += 1
+            next_step = current_step + 1
+            if next_step >= len(paths):
+                break
+            next_zone = paths[next_step]
+            if wait_restrict:
+                wait_restrict = False
+                current_step = next_step
+                continue
+            zone_type = self.reader.get_zone_type(next_zone)
+            if zone_type == "restricted":
+                wait_restrict = True
+                continue
+            else:
+                current_step = next_step
+        return turn_count
+
+    def path_final(self, paths: List[List[str]]) -> List[int]:
+        best_path = paths[0]
+        best_count = self.simulate_turn_count(paths=paths[0])
+        for p in paths[1:]:
+            turn_count = self.simulate_turn_count(paths=p)
+            if turn_count < best_count:
+                best_count = turn_count
+                best_path = p
+        return best_path
+
     def init_drone(self) -> None:
         try:
             paths = self.find_k_path(nb_path=2)  # 2 path
@@ -69,10 +101,10 @@ class Solver:
                 return
             nb_drones = self.reader.start_zone
             self.occupacy = {nb_drones: len(self.reader.drones)}
+            choose_path = self.path_final(paths=paths)
             for i, drone in enumerate(self.reader.drones):
-                path_pos = i % len(paths)
-                self.path[drone.ids] = paths[path_pos]
-                self.step[drone.ids] = -(i // len(paths))
+                self.path[drone.ids] = choose_path
+                self.step[drone.ids] = 0
                 drone.current_zone = nb_drones
                 drone.is_fly = False
                 self.wait_restricted[drone.ids] = False
@@ -84,16 +116,22 @@ class Solver:
 
     def turn(self) -> bool:
         moving = False
+        if len(self.is_finished) == (len(self.reader.drones)):
+            return False
         for drone in self.reader.drones:
             if drone.ids in self.is_finished:
                 continue
             if self.step[drone.ids] < 0:  # step == -i (d0->d1->d2)
                 self.step[drone.ids] += 1  # step (-) ++
                 moving = True
-                continue  # step == 0 on lance
+                continue  # step == 0 on lanc
             path = self.path.get(drone.ids, [])  # [start, gate_1 ....]
             current_pos = self.step[drone.ids]
             next_step = current_pos + 1  # prochaine case
+            if next_step >= len(path):
+                self.is_finished.add(drone.ids)
+                print('finish_sim')
+                continue
             if next_step < len(path):  # step == 2 path[2]
                 next_zone = path[next_step]
                 current_zone = path[current_pos]
