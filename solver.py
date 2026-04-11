@@ -52,7 +52,7 @@ class Solver:
         paths = []
         blocked_zone: set[str] = set()
         for _ in range(nb_path):
-            path = self.dijkstra(extra_blocked=blocked_zone)
+            path = self.dijkstra(extra_blocked=blocked_zone, start_idx=None)
             if not path:
                 break
             paths.append(path)
@@ -140,7 +140,8 @@ class Solver:
                     for zone, count_satured in self.occupacy.items():
                         if count_satured >= self.reader.max_drone_cap(zone) and count_satured > 0:
                             satured_zone.add(zone)
-                    new_path = self.dijkstra(extra_blocked=satured_zone)
+                    new_path = self.dijkstra(extra_blocked=satured_zone,
+                                             start_idx=current_zone)
                     if new_path:
                         self.path[drone.ids] = new_path
                         if current_zone in new_path:
