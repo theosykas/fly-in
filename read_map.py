@@ -37,6 +37,7 @@ class Drone:
         self.next_zone: str = ""
         self.ids: str = ids
         self.wait_turn: int = -1
+        self.path: List[str] = []
 
 
 class Reader:

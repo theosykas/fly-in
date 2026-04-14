@@ -1,9 +1,10 @@
 from read_map import Reader
+from solver import Solver
 from typing import List
 import pygame as py
-from solver import Solver
 import math
 import os
+from colorama import Fore
 
 
 class FrameCircle:
@@ -26,7 +27,6 @@ class FrameCircle:
                 ratio = img.get_width() / img.get_height()
                 target = int(self.target_widht / ratio)
                 img = py.transform.scale(img, (self.target_widht, target))
-                # bruit gif
                 tolerence = 30
                 width, height = img.get_size()
                 for x in range(width):
@@ -102,7 +102,6 @@ class Visualizeur:
                 (z2.y * self.zoom) + (self.height // 4) + self.cam_y,
             )
             if co.drones_transit:
-                # print(f'LIEN ACTIF: {co.z_1} -> {co.z_2} | drone {co.drones_transit}')
                 color = (101, 143, 112)
             else:
                 color = (183, 189, 248)
@@ -161,6 +160,20 @@ class Visualizeur:
                 color = (85, 118, 171)
             py.draw.circle(self.screen, color, (pos_x, pos_y), radius_dynamic)
 
+    def format_output(self, current_time: int, last_move: int, move_delay: int) -> str:
+        if self.sim_solve and current_time - last_move > move_delay:
+            if len(self.solver.is_finished) < len(self.map_read.drones):
+                moving, output_format = self.solver.turn()
+                if output_format:
+                    print(output_format)
+                    self.current_turn += 1
+                if not moving and len(self.solver.is_finished) >= len(self.map_read.drones):
+                    self.sim_solve = False
+                    print(Fore.GREEN + f"sim finished | current turn = {self.current_turn}")
+                    return
+            return current_time
+        return last_move
+
     def start_sim(self) -> None:
         is_drag = False
         self.start_solve()
@@ -200,14 +213,7 @@ class Visualizeur:
                             self.cam_x = mouse_x + offset_x
                             self.cam_y = mouse_y + offset_y
                         self.mousse_position = event.pos
-                if self.sim_solve and (current_time - last_move >
-                                       move_delay):
-                    moving = self.solver.turn()
-                    print(f"turn count = {self.current_turn}")
-                    self.current_turn += 1
-                    last_move = current_time
-                    if not moving:
-                        self.sim_solve = False
+                last_move = self.format_output(current_time=current_time, last_move=last_move, move_delay=move_delay)
                 self.width, self.height = self.screen.get_size()  # RESIZE
                 self.screen.fill(self.BG_COLOR)
                 self.draw_network()

@@ -1,26 +1,44 @@
 from heapq import heappop, heappush
 from typing import List, Dict, Set
 from read_map import Reader
-
+from colorama import Fore, Style
 
 class Solver:
     def __init__(self, reader: Reader) -> None:
-        self.reader = reader
-        self.wait_restricted: Dict[str, bool] = {}
-        self.step: Dict[str, int] = {}
-        self.path: Dict[str, List[str]] = {}  # drone id + path
         self.mem_connection: Dict[str, tuple[str, str]] = {}
+        self.wait_restricted: Dict[str, bool] = {}
+        self.path: Dict[str, List[str]] = {}  # drone id + path
         self.occupacy: Dict[str, int] = {}
+        self.step: Dict[str, int] = {}
         self.is_finished: Set[str] = set()
+        self.reader = reader
 
-    def dijkstra(self, extra_blocked: Set[str], start_idx: None) -> List[str]:  # a - c - d - f short path
+    def find_k_path(self, nb_path: int) -> List[List[str]]:
+        penality_zone: Dict[str, int] = {}
+        penality_num: int = 2
+        paths: List[str] = []
+        for _ in range(nb_path):
+            path = self.dijkstra(penality=penality_zone, start_idx=None)
+            if not path:
+                break
+            paths.append(path)
+            # force a trouver un autre chemin en zone blocked
+            for inter_zone in path[1:-1]:  # 1 == start -1 == goal
+                penality_zone[inter_zone] = penality_zone.get(
+                    inter_zone, 0) + penality_num
+        return paths
+
+    def dijkstra(self, penality: Dict[str, int],
+                 start_idx: str = None) -> List[str]:  # a - c - d - f short path
         if start_idx:
             start_hub = start_idx
         else:
             start_hub = self.reader.start_zone
         end_hub = self.reader.end_zone
         # 0 total_cost, start = current_node [start] = path parcourru
-        priority_queue: List[tuple[int, str, List[str]]] = [(0, start_hub, [start_hub])]
+        priority_queue: List[tuple[int, str, List[str]]] = [(0,
+                                                             start_hub,
+                                                             [start_hub])]
         visited: Set[str] = set()
         while priority_queue:  # non fini
             current_cost, current_node, find_path = heappop(
@@ -32,112 +50,69 @@ class Solver:
                 return find_path
             visited.add(current_node)
             for neighboor in self.reader.get_neighboor(current_node):
-                cost_zone = 1
+                cost_zone = 10
                 if neighboor not in visited:
-                    if neighboor in extra_blocked:  # block zone deja utiliser
-                        continue
                     zone_type = self.reader.get_zone_type(neighboor)
                     if zone_type == "blocked":
                         continue
                     elif zone_type == "restricted":
-                        cost_zone = 2
-                    update_cost = current_cost + cost_zone
+                        cost_zone = 20
+                    elif zone_type == "priority":
+                        cost_zone = 9  # augmente le poids < normal cost
+                    cost_zone += penality.get(neighboor, 0)
                     heappush(
                         priority_queue,
-                        (update_cost, neighboor, find_path + [neighboor]),
+                        (current_cost + cost_zone,
+                         neighboor,
+                         find_path + [neighboor]),
                     )
         return []
 
-    def find_k_path(self, nb_path: int) -> List[int]:
-        paths = []
-        blocked_zone: set[str] = set()
-        for _ in range(nb_path):
-            path = self.dijkstra(extra_blocked=blocked_zone, start_idx=None)
-            if not path:
-                break
-            paths.append(path)
-            # forcew a trouver un autre chemin en zone blocked
-            for inter_zone in path[1:-1]:  # 1 == start -1 ==goal
-                blocked_zone.add(inter_zone)
-        return paths
-
-    def simulate_turn_count(self, paths: List[str]) -> int:
-        turn_count = 0
-        wait_restrict = 0
-        current_step = 0
-        while turn_count < 1000:
-            turn_count += 1
-            next_step = current_step + 1
-            if next_step >= len(paths):
-                break
-            next_zone = paths[next_step]
-            if wait_restrict:
-                wait_restrict = False
-                current_step = next_step
-                continue
-            zone_type = self.reader.get_zone_type(next_zone)
-            if zone_type == "restricted":
-                wait_restrict = True
-                current_step = next_step
-                continue
-            else:
-                current_step = next_step
-        return turn_count
-
-    def path_final(self, paths: List[List[str]]) -> List[str]:
-        best_path = paths[0]
-        best_count = self.simulate_turn_count(paths=paths[0])
-        for p in paths[1:]:
-            turn_count = self.simulate_turn_count(paths=p)
-            if turn_count < best_count:
-                best_count = turn_count
-                best_path = p
-        return best_path
-
     def init_drone(self) -> None:
         try:
-            paths = self.find_k_path(nb_path=2)  # 2 path
+            paths = self.find_k_path(nb_path=2)
             if not paths:
                 print("Error - path not find")
                 return
-            nb_drones = self.reader.start_zone
-            self.occupacy = {nb_drones: len(self.reader.drones)}
-            choose_path = self.path_final(paths=paths)
+            start = self.reader.start_zone
+            self.occupacy = {start: len(self.reader.drones)}
+            num_paths = len(paths)
             for i, drone in enumerate(self.reader.drones):
-                self.path[drone.ids] = choose_path
+                assign_path = paths[i % num_paths]
+                self.path[drone.ids] = assign_path
                 self.step[drone.ids] = 0
-                drone.current_zone = nb_drones
-                drone.is_fly = False
+                drone.current_zone = start
                 self.wait_restricted[drone.ids] = False
+                drone.is_fly = False
         except Exception:
-            print('Error initialize drones')
-            import traceback
-            traceback.print_exc()
+            print(f'{Fore.RED} Error initialize drones')
         return None
 
     def turn(self) -> bool:
+        turn_output: List[str] = []
         moving = False
-        if len(self.is_finished) == (len(self.reader.drones)):
-            return False
         for drone in self.reader.drones:
             if drone.ids in self.is_finished:
                 continue
+
             if self.step[drone.ids] < 0:  # step == -i (d0->d1->d2)
                 self.step[drone.ids] += 1  # step (-) ++
                 moving = True
                 continue  # step == 0 on lanc
+
             path = self.path.get(drone.ids, [])  # [start, gate_1 ....]
             current_pos = self.step[drone.ids]
             next_step = current_pos + 1  # prochaine case
+
             if next_step >= len(path):
                 self.is_finished.add(drone.ids)
-                print('finish_sim')
+                self.occupacy[path[current_pos]] -= 1
                 continue
+
             if next_step < len(path):  # step == 2 path[2]
                 next_zone = path[next_step]
                 current_zone = path[current_pos]
                 max_drones = self.reader.max_drone_cap(next_zone)
-                # print(f"{drone.ids} capacity {max_drones} {next_zone}")
                 current_occupacy = self.occupacy.get(next_zone, 0)
                 if self.wait_restricted.get(drone.ids, False):
                     self.wait_restricted[drone.ids] = False  # sort du link
@@ -147,6 +122,7 @@ class Solver:
                         connection.drones_transit.remove(drone.ids)
                     self.step[drone.ids] = next_step
                     drone.current_zone = next_zone
+                    turn_output.append(f"{Fore.GREEN + drone.ids}{Style.RESET_ALL}-{next_zone}")
                     moving = True
                     continue
                 if current_occupacy < max_drones:
@@ -165,6 +141,7 @@ class Solver:
                                     current_zone,
                                     next_zone,
                                 )
+                            turn_output.append(f"{Fore.GREEN + drone.ids}{Style.RESET_ALL}-{current_zone}-{next_zone}")
                             moving = True
                             continue
                     else:
@@ -173,21 +150,11 @@ class Solver:
                         self.occupacy[next_zone] = current_occupacy + 1
                         self.step[drone.ids] = next_step
                         drone.current_zone = next_zone
+                        turn_output.append(f"{Fore.GREEN + drone.ids}{Style.RESET_ALL}-{next_zone}")
                         moving = True
                 else:
-                    satured_zone: Set[str] = set()
-                    for zone, count_satured in self.occupacy.items():
-                        if count_satured >= self.reader.max_drone_cap(zone) and count_satured > 0:
-                            satured_zone.add(zone)
-                    new_path = self.dijkstra(extra_blocked=satured_zone,
-                                             start_idx=current_zone)
-                    if new_path:
-                        self.path[drone.ids] = new_path
-                        if current_zone in new_path:
-                            self.step[drone.ids] = new_path.index(current_zone)
                     moving = True
-        return moving
-
+        return moving, " ".join(turn_output)
 
 # heappush: Ajoute un élément à la file d'attente avec sa priorité associée.
 
