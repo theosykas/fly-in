@@ -61,7 +61,7 @@ class Solver:
                 blocked_zone.add(inter_zone)
         return paths
 
-    def simulate_turn_count(self, paths: List[List[str]]) -> int:
+    def simulate_turn_count(self, paths: List[str]) -> int:
         turn_count = 0
         wait_restrict = 0
         current_step = 0
@@ -78,12 +78,13 @@ class Solver:
             zone_type = self.reader.get_zone_type(next_zone)
             if zone_type == "restricted":
                 wait_restrict = True
+                current_step = next_step
                 continue
             else:
                 current_step = next_step
         return turn_count
 
-    def path_final(self, paths: List[List[str]]) -> List[int]:
+    def path_final(self, paths: List[List[str]]) -> List[str]:
         best_path = paths[0]
         best_count = self.simulate_turn_count(paths=paths[0])
         for p in paths[1:]:
