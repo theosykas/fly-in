@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional
+from colorama import Fore, Style
 
 
 class MetadataConnection:
@@ -78,13 +79,223 @@ class Reader:
             return self.connection[f"{z2}-{z1}"]
         return None
 
+    def valide_pos(self) -> None:
+        ERROR_MSG = ""
+        if not hasattr(self, "start_zone"):
+            raise ValueError("missing <start_hub:>")
+        if not hasattr(self, "end_zone"):
+            raise ValueError("missing <end_hub:>")
+        for key, co in self.connection.items():
+            if co.z_1 not in self.zone:
+                ERROR_MSG = f"unknown zone '{co.z_1}' in connection"
+                ERROR_MSG += f"{key}"
+                raise ValueError(ERROR_MSG)
+            if co.z_2 not in self.zone:
+                ERROR_MSG = f"unknown zone '{co.z_2}' in connection"
+                ERROR_MSG += f"{key}"
+                raise ValueError(ERROR_MSG)
+
+    def parse_drone(self, line: str) -> None:
+        split_arg = line.split(":")
+        self.nb_drones = int(split_arg[1].strip())
+        if self.nb_drones <= 0:
+            ERROR_MSG = "you must have "
+            ERROR_MSG += "at least one drone"
+            raise ValueError(ERROR_MSG)
+        for id in range(self.nb_drones):
+            drones_ids = f"D{id + 1}"
+            self.drones.append(Drone(drones_ids))
+
+    def parse_hub(self, line: str) -> None:
+        name_hub, content = line.split(":", 1)
+        if '[' in content:
+            parts = content.split('[', 1)
+            data_hub = parts[0].strip()
+            metadata_raw = parts[1]
+            if metadata_raw.count(']') != 1:
+                raise ValueError('too many brackets')
+            if metadata_raw.count('[') != 0:
+                ERROR_MSG = 'opening brace'
+                ERROR_MSG += "into metadata"
+                raise ValueError(ERROR_MSG)
+            metadata_hub = metadata_raw.rstrip(']').strip()
+        else:
+            data_hub = content.strip()
+            metadata_hub = ""
+        hub_parts = data_hub.split()
+        if len(hub_parts) != 3:
+            ERROR_MSG = "Invalid hub format"
+            ERROR_MSG += " <hub> <x> <y>"
+            raise ValueError(ERROR_MSG)
+        hub_name = hub_parts[0]
+        if '-' in hub_name:
+            ERROR_MSG = "invalid hub_name"
+            ERROR_MSG += f" {hub_name}"
+            raise ValueError(ERROR_MSG)
+        try:
+            x_pos = int(hub_parts[1])
+            y_pos = int(hub_parts[2])
+        except ValueError:
+            raise ValueError("Coordinate must be int")
+
+        curr_metadata = MetadataHub()  # recover meta
+        if metadata_hub:
+            metadata_parts = metadata_hub.split()
+            double_meta = set()
+            valid_zone = {'blocked',
+                          'normal',
+                          'restricted',
+                          'priority'}
+            for p in metadata_parts:
+                if '=' not in p:
+                    ERROR_MSG = "missing '=' into "
+                    ERROR_MSG += "metadata [meta=data]"
+                    raise ValueError(ERROR_MSG)
+
+                key, value = p.split('=', 1)
+
+                if key in double_meta:
+                    raise ValueError("duplicate metadata")
+                double_meta.add(key)
+
+                if '=' in p:
+                    allowed_keys = {'color',
+                                    'zone',
+                                    'max_drones'}
+                    if key not in allowed_keys:
+                        ERROR_MSG = "extra_keys"
+                        ERROR_MSG += f" {key}"
+                        raise ValueError(ERROR_MSG)
+                    if not value:
+                        raise ValueError(f' empy value for key {key}')
+                    if key == 'color':
+                        curr_metadata.color = value
+                    elif key == 'zone':
+                        if value not in valid_zone:
+                            raise ValueError(
+                                        'invalid zone input')
+                        curr_metadata.type_zone = value
+                        if value == 'blocked':
+                            curr_metadata.is_blocked = True
+                    elif key == 'max_drones':
+                        try:
+                            val = int(value)
+                        except ValueError:
+                            ERROR_MSG = "max_drones"
+                            ERROR_MSG += " must be integer"
+                            raise ValueError(ERROR_MSG)
+                        if val <= 0:
+                            ERROR_MSG = "max_drones "
+                            ERROR_MSG += "must be positive int"
+                            raise ValueError(ERROR_MSG)
+                        curr_metadata.max_drones = val
+        create_zone = Zone(name=hub_name, x=x_pos, y=y_pos)
+        create_zone.metadata = curr_metadata
+        if name_hub == "start_hub":
+            self.start_zone = hub_name
+        elif name_hub == "end_hub":
+            self.end_zone = hub_name
+        self.zone[hub_name] = create_zone
+        self.zone_type[hub_name] = curr_metadata.type_zone
+
+    def parse_connection(self, line: str) -> None:
+        _, connection_parts = line.split(":", 1)
+        if '[' in connection_parts:
+            parts = connection_parts.split('[', 1)
+            data_connections = parts[0].strip()
+            metadata_raw = parts[1]
+            if metadata_raw.count(']') != 1:
+                raise ValueError('too many brackets')
+            if metadata_raw.count('[') != 0:
+                ERROR_MSG = 'opening brace'
+                ERROR_MSG += " opening brace"
+                raise ValueError(ERROR_MSG)
+            metadata = metadata_raw.rstrip(']').strip()
+        else:
+            data_connections = connection_parts.strip()
+            metadata = ""
+        if '-' not in data_connections:
+            ERROR_MSG = "you must have dash"
+            ERROR_MSG += "in connection"
+            raise ValueError(ERROR_MSG)
+        zone = data_connections.split('-')
+        if len(zone) != 2:
+            ERROR_MSG = "you need two"
+            ERROR_MSG += " zone to connection"
+            raise ValueError(ERROR_MSG)
+        zone_1 = zone[0].strip()
+        zone_2 = zone[1].strip()
+        if zone_1 not in self.adj_neigboor:
+            self.adj_neigboor[zone_1] = []
+        if zone_2 not in self.adj_neigboor:
+            self.adj_neigboor[zone_2] = []
+        if zone_1 not in self.adj_neigboor[zone_2]:
+            self.adj_neigboor[zone_2].append(zone_1)
+        if zone_2 not in self.adj_neigboor[zone_1]:
+            self.adj_neigboor[zone_1].append(zone_2)
+
+        curr_meta_conn = MetadataConnection()
+        if metadata:
+            meta_parts = metadata.split()
+            double_meta = set()
+            for p in meta_parts:
+
+                if '=' not in p:
+                    ERROR_MSG = "missing '=' into"
+                    ERROR_MSG += " metadata [meta=data]"
+                    raise ValueError(ERROR_MSG)
+
+                if '=' in p:
+                    key, value = p.split('=', 1)
+
+                    if key in double_meta:
+                        ERROR_MSG = "duplicate"
+                        ERROR_MSG += " metadata"
+                        raise ValueError(ERROR_MSG)
+                    double_meta.add(key)
+
+                    allowed_keys = {'max_link_capacity'}
+                    if key not in allowed_keys:
+                        ERROR_MSG = "extra_keys"
+                        ERROR_MSG += f" {key}"
+                        raise ValueError(ERROR_MSG)
+
+                    if key == 'max_link_capacity':
+                        try:
+                            val = int(value)
+                        except ValueError:
+                            ERROR_MSG = "max_link"
+                            ERROR_MSG += "must be intger"
+                            raise ValueError(ERROR_MSG)
+                        if val <= 0:
+                            ERROR_MSG = "max_link must"
+                            ERROR_MSG += " be positive integer"
+                            raise ValueError(ERROR_MSG)
+                        curr_meta_conn.max_link = val
+
+        if zone_1 in self.zone and zone_2 in self.zone:
+            key_1 = f"{zone_1}-{zone_2}"
+            key_2 = f"{zone_2}-{zone_1}"
+
+            if key_1 in self.connection or key_2 in self.connection:
+                raise ValueError(f"duplicate connection: {key_1}")
+            bidirectional_create = Connection(
+                z_1=zone_1,
+                z_2=zone_2)
+            bidirectional_create.metadata = curr_meta_conn
+            key = f"{zone_1}-{zone_2}"
+            if key not in self.connection:
+                self.connection[key_1] = bidirectional_create
+
     def parse_map(self) -> None:
-        valid_hub: tuple[str, str, str] = ("hub:", "start_hub:", "end_hub:")
+        valid_hub: tuple[str, str, str] = ("hub",
+                                           "start_hub",
+                                           "end_hub")
         valid_first_line: bool = False
 
         try:
             with open(self.file_path, 'r') as file:
-                for line in file:
+                for line_nb, line in enumerate(file, start=1):
                     line = line.strip()
                     if not line or line.startswith("#"):
                         continue
@@ -92,198 +303,22 @@ class Reader:
                     if not valid_first_line:
                         valid_first_line = True  # err
                         if not line.startswith("nb_drones:"):
-                            ERROR_MSG = "[Error] you map must be start"
+                            ERROR_MSG = "you map must be start"
                             ERROR_MSG += " with <nb_drones>"
                             raise ValueError(ERROR_MSG)
 
                     if line.startswith("nb_drones:"):
-                        split_arg = line.split(":")
-                        self.nb_drones = int(split_arg[1].strip())
-                        if self.nb_drones <= 0:
-                            ERROR_MSG = "[Error] you must have "
-                            ERROR_MSG += "at least one drone"
-                            raise ValueError(ERROR_MSG)
-                        for id in range(self.nb_drones):
-                            drones_ids = f"D{id + 1}"
-                            self.drones.append(Drone(drones_ids))
-                    # hub_parts
-
+                        self.parse_drone(line)
                     elif line.startswith(valid_hub):
-                        name_hub, content = line.split(":", 1)
-                        if '[' in content:
-                            parts = content.split('[', 1)
-                            data_hub = parts[0].strip()
-                            metadata_hub = parts[1].rstrip(']').strip()
-                        else:
-                            data_hub = content.strip()
-                            metadata_hub = ""
-                        hub_parts = data_hub.split()
-                        if len(hub_parts) != 3:
-                            ERROR_MSG = "[Error] Invalid hub format"
-                            ERROR_MSG += " <hub> <x> <y>"
-                            raise ValueError(ERROR_MSG)
-                        hub_name = hub_parts[0]
-                        if '-' in hub_name:
-                            ERROR_MSG = "[Error] invalid hub_name"
-                            ERROR_MSG += f" {hub_name}"
-                            raise ValueError(ERROR_MSG)
-                        try:
-                            x_pos = int(hub_parts[1])
-                            y_pos = int(hub_parts[2])
-                        except ValueError:
-                            raise ValueError("[Error] Coordinate must be int")
-
-                        curr_metadata = MetadataHub()  # recover meta
-                        if metadata_hub:
-                            metadata_parts = metadata_hub.split()
-                            double_meta = set()
-                            valid_zone = {'blocked',
-                                          'normal',
-                                          'restricted',
-                                          'priority'}
-                            for p in metadata_parts:
-                                if '=' not in p:
-                                    ERROR_MSG = "[Error] missing '=' into "
-                                    ERROR_MSG += "metadata [meta=data]"
-                                    raise ValueError(ERROR_MSG)
-
-                                key, value = p.split('=', 1)
-
-                                if key in double_meta:
-                                    ERROR_MSG = "[Error] duplicate "
-                                    ERROR_MSG += "metadata"
-                                    raise ValueError(ERROR_MSG)
-                                double_meta.add(key)
-
-                                if '=' in p:
-                                    allowed_keys = {'color',
-                                                    'zone',
-                                                    'restricted',
-                                                    'max_drones'}
-                                    if key not in allowed_keys:
-                                        ERROR_MSG = "[Error] extra_keys"
-                                        ERROR_MSG += f" {key}"
-                                        raise ValueError(ERROR_MSG)
-                                    if key == 'color':
-                                        curr_metadata.color = value
-                                    elif key == 'zone':
-                                        if value not in valid_zone:
-                                            raise ValueError(
-                                                'Error invalid zone input')
-                                        curr_metadata.type_zone = value
-                                        if value == 'blocked':
-                                            curr_metadata.is_blocked = True
-                                    elif key == 'max_drones':
-                                        try:
-                                            val = int(value)
-                                        except ValueError:
-                                            ERROR_MSG = "[Error] max_drones"
-                                            ERROR_MSG += " must be integer"
-                                            raise ValueError(ERROR_MSG)
-                                        if val <= 0:
-                                            ERROR_MSG = "[Error] max_drones "
-                                            ERROR_MSG += "must be positive int"
-                                            raise ValueError(ERROR_MSG)
-                                        curr_metadata.max_drones = val
-                        create_zone = Zone(name=hub_name, x=x_pos, y=y_pos)
-                        create_zone.metadata = curr_metadata
-                        if name_hub == "start_hub":
-                            self.start_zone = hub_name
-                        elif name_hub == "end_hub":
-                            self.end_zone = hub_name
-                        self.zone[hub_name] = create_zone
-                        self.zone_type[hub_name] = curr_metadata.type_zone
-                    # connection parts
-                    elif not line.startswith("connection:"):
-                        ERROR_MSG = "[Error] connection start"
-                        ERROR_MSG += " with <connection:>"
-                        raise ValueError(ERROR_MSG)
+                        self.parse_hub(line)
                     elif line.startswith("connection:"):
-                        _, connection_parts = line.split(":", 1)
-                        if '[' in connection_parts:
-                            parts = connection_parts.split('[', 1)
-                            data_connections = parts[0].strip()
-                            metadata = parts[1].rstrip(']').strip()
-                        else:
-                            data_connections = connection_parts.strip()
-                            metadata = ""
-                        if '-' not in data_connections:
-                            ERROR_MSG = "[Error] you must have dash"
-                            ERROR_MSG += "in connection"
-                            raise ValueError(ERROR_MSG)
-                        zone = data_connections.split('-')
-                        if len(zone) != 2:
-                            ERROR_MSG = "[Error] you need two"
-                            ERROR_MSG += " zone to connection"
-                            raise ValueError(ERROR_MSG)
-                        zone_1 = zone[0].strip()
-                        zone_2 = zone[1].strip()
-                        if zone_1 not in self.adj_neigboor:
-                            self.adj_neigboor[zone_1] = []
-                        if zone_2 not in self.adj_neigboor:
-                            self.adj_neigboor[zone_2] = []
-                        # bidirectional
-                        # check si zone_1 est dans la zone_2
-                        if zone_1 not in self.adj_neigboor[zone_2]:
-                            self.adj_neigboor[zone_2].append(zone_1)
-                        if zone_2 not in self.adj_neigboor[zone_1]:
-                            self.adj_neigboor[zone_1].append(zone_2)
-
-                        curr_meta_conn = MetadataConnection()
-                        if metadata:
-                            meta_parts = metadata.split()
-                            double_meta = set()
-                            for p in meta_parts:
-
-                                if '=' not in p:
-                                    ERROR_MSG = "[Error] missing '=' into"
-                                    ERROR_MSG += " metadata [meta=data]"
-                                    raise ValueError(ERROR_MSG)
-
-                                if '=' in p:
-                                    key, value = p.split('=', 1)
-
-                                    if key in double_meta:
-                                        ERROR_MSG = "[Error] duplicate"
-                                        ERROR_MSG += " metadata"
-                                        raise ValueError(ERROR_MSG)
-                                    double_meta.add(key)
-
-                                    allowed_keys = {'max_link_capacity'}
-                                    if key not in allowed_keys:
-                                        ERROR_MSG = "[Error] extra_keys"
-                                        ERROR_MSG += f" {key}"
-                                        raise ValueError(ERROR_MSG)
-
-                                    if key == 'max_link_capacity':
-                                        try:
-                                            val = int(value)
-                                        except ValueError:
-                                            ERROR_MSG = "[Error] max_link"
-                                            ERROR_MSG += "must be intger"
-                                            raise ValueError(ERROR_MSG)
-                                        if val <= 0:
-                                            ERROR_MSG = "[Error] max_link must"
-                                            ERROR_MSG += " be positive integer"
-                                            raise ValueError(ERROR_MSG)
-                                        curr_meta_conn.max_link = val
-
-                        if zone_1 in self.zone and zone_2 in self.zone:
-                            bidirectional_create = Connection(
-                                z_1=zone_1,
-                                z_2=zone_2)
-                            bidirectional_create.metadata = curr_meta_conn
-                            key = f"{zone_1}-{zone_2}"
-                            if key not in self.connection:
-                                self.connection[key] = bidirectional_create
-                if not hasattr(self, "start_zone"):
-                    raise ValueError("[Error] missing <start_hub:>")
-                if not hasattr(self, 'end_zone'):
-                    raise ValueError("[Error] missing <end_hub:>")
-                if zone_1 not in self.zone or zone_2 not in self.zone:
-                    raise ValueError("[Error] unknow type zone")
+                        self.parse_connection(line)
+                    else:
+                        format = line.split(':')[0]
+                        raise ValueError(f'unknow format "{format}" directive')
+            self.valide_pos()
         except FileNotFoundError:
             print('Error file is not found')
         except Exception as e:
-            print(f"parsing {e}")
-            exit(1)
+            print(f"{Fore.RED} [Error] [Line: {line_nb}]{Style.RESET_ALL} {e}")
+            exit(0)

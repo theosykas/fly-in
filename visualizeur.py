@@ -1,6 +1,6 @@
+from typing import List, Optional, Union
 from read_map import Reader
 from solver import Solver
-from typing import List, Any
 import pygame as py
 import math
 import os
@@ -10,13 +10,12 @@ class FrameCircle:
     def __init__(self, path: str, target_width: int,
                  speed_frame: float = 5.5) -> None:
         self.path = path
-        self.frames: List[List] = []
+        self.frames: List[List[int]] = []
         self.index_pos: int = 0
         self.count_frames: int = 0
         self.target_widht = target_width
         self.speed = speed_frame
         self.frames = self.load_frames()
-        return None
 
     def load_frames(self) -> list[py.Surface]:
         frames = []
@@ -38,7 +37,7 @@ class FrameCircle:
                 frames.append(img)
         return frames
 
-    def update_frames(self) -> List[Any]:
+    def update_frames(self) -> List[int]:
         self.count_frames += 1
         if self.count_frames >= self.speed:
             self.count_frames = 0
@@ -69,7 +68,7 @@ class Visualizeur:
         self.cam_y: float = 0.0
         self.drone_img = py.image.load("drone.png").convert_alpha()
         self.drone_img = py.transform.scale(self.drone_img, (30, 30))
-        self.solver = None
+        self.solver: Optional[Solver] = None
         self.current_turn: int = 0
         self.sim_solve: bool = False
         py.font.init()
@@ -88,12 +87,11 @@ class Visualizeur:
                                                          int(draw_y)))
             self.screen.blit(self.drone_img, rect_drone)
 
-    def start_solve(self) -> 'Solver':
+    def start_solve(self) -> None:
         self.solver = Solver(self.map_read)
         self.solver.init_drone()
         self.current_turn = 0
         self.sim_solve = True
-        return None
 
     def draw_network(self) -> None:
         line_zoom = max(2, int(2 * self.zoom / 90.0))
@@ -122,7 +120,7 @@ class Visualizeur:
         zoom_avg = self.zoom / 90.0
         radius_dynamic = max(5, int(12 * (zoom_avg)))
         for _, zone in self.map_read.zone.items():
-            color = (39, 69, 41)
+            color: Union[tuple[int, int, int], str] = (39, 69, 41)
             pos_x = (zone.x * self.zoom) + (self.width // 4) + self.cam_x
             pos_y = (zone.y * self.zoom) + (self.height // 4) + self.cam_y
             dist_x = mousse_p[0] - pos_x
@@ -181,7 +179,7 @@ class Visualizeur:
                 if not moving:
                     self.sim_solve = False
                 if len(self.solver.is_finished) >= len(self.map_read.drones):
-                    return
+                    return current_time
             return current_time
         return last_move
 

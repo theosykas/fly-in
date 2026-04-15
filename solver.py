@@ -1,5 +1,5 @@
-from heapq import heappop, heappush
 from typing import List, Dict, Set, Optional
+from heapq import heappop, heappush
 from colorama import Fore, Style
 from read_map import Reader
 
@@ -14,15 +14,15 @@ class Solver:
         self.is_finished: Set[str] = set()
         self.reader = reader
 
-    def find_k_path(self, nb_path: int) -> List[str]:
+    def find_k_path(self, nb_path: int) -> List[List[str]]:
         penality_zone: Dict[str, int] = {}
         penality_num: int = 2
-        paths: List[str] = []
+        paths: List[List[str]] = []
         for _ in range(nb_path):
             path = self.dijkstra(penality=penality_zone, start_idx=None)
             if not path:
                 break
-            paths.extend([path])
+            paths.append(path)
             # force a trouver un autre chemin en zone blocked
             for inter_zone in path[1:-1]:  # 1 == start -1 == goal
                 penality_zone[inter_zone] = penality_zone.get(
@@ -155,9 +155,11 @@ class Solver:
                                     current_zone,
                                     next_zone,
                                 )
-                            turn_output.append(f"{Fore.GREEN + drone.ids}"
-                                               f"{Style.RESET_ALL}-"
-                                               f"{current_zone}-{next_zone}")
+                                conn_name = f"{connection.z_1}-"
+                                conn_name += f"{connection.z_2}"
+                                turn_output.append(f"{Fore.GREEN + drone.ids}"
+                                                   f"{Style.RESET_ALL}-"
+                                                   f"{conn_name}")
                             moving = True
                             continue
                     else:
