@@ -1,0 +1,8 @@
+nb_drones: 5
+
+start_hub: start 0 0 [color=green max_drones=5]
+hub: bridge 5 0 [max_drones=1]
+end_hub: goal 10 0 [color=rainbow max_drones=5]
+
+connection: start-bridge [max_link_capacity=1]
+connection: bridge-goal [max_link_capacity=1]

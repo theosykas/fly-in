@@ -1,5 +1,4 @@
-from visualizeur_sim import Visualizeur
-# from solver import Solver
+from visualizeur import Visualizeur
 from read_map import Reader
 import sys
 
@@ -15,9 +14,7 @@ def main() -> None:
         run_sim = Visualizeur(1200, 600, map_read=reader)
         run_sim.start_sim()
     except Exception as err:
-        import traceback
-        traceback.print_exc()
-        print(f'Error: {err}')
+        print(f'[Error]: {err}')
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 from read_map import Reader
-from colorama import Fore
 from solver import Solver
-from typing import List
+from typing import List, Any
 import pygame as py
 import math
 import os
@@ -11,7 +10,7 @@ class FrameCircle:
     def __init__(self, path: str, target_width: int,
                  speed_frame: float = 5.5) -> None:
         self.path = path
-        self.frames: List = []
+        self.frames: List[List] = []
         self.index_pos: int = 0
         self.count_frames: int = 0
         self.target_widht = target_width
@@ -19,7 +18,7 @@ class FrameCircle:
         self.frames = self.load_frames()
         return None
 
-    def load_frames(self) -> list:
+    def load_frames(self) -> list[py.Surface]:
         frames = []
         for f in sorted(os.listdir(self.path)):
             if f.endswith(".png"):
@@ -39,11 +38,12 @@ class FrameCircle:
                 frames.append(img)
         return frames
 
-    def update_frames(self) -> py.Surface:
+    def update_frames(self) -> List[Any]:
         self.count_frames += 1
         if self.count_frames >= self.speed:
             self.count_frames = 0
-            self.index_pos = (self.index_pos + 1) % len(self.frames)  # reset a 0
+            # reset a 0
+            self.index_pos = (self.index_pos + 1) % len(self.frames)
         return self.frames[self.index_pos]
 
 
@@ -61,7 +61,7 @@ class Visualizeur:
         py.display.set_icon(icon)
         self.zoom: float = 90.0
         self.scroll_speed: float = 8.0
-        self.BG_COLOR: tuple = ((30, 30, 46))  # cattpucin
+        self.BG_COLOR: tuple[int, int, int] = ((30, 30, 46))  # cattpucin
         self.running_mode = True
         self.rainbow = FrameCircle("rainbow_texture", 45, speed_frame=2.5)
         self.green = FrameCircle("green_texture", 42, speed_frame=1.5)
@@ -77,7 +77,7 @@ class Visualizeur:
         self.font_x = 9
         self.font_y = 9
 
-    def draw_drone(self):
+    def draw_drone(self) -> None:
         for drone in self.map_read.drones:
             if drone.current_zone not in self.map_read.zone:
                 continue
@@ -88,7 +88,7 @@ class Visualizeur:
                                                          int(draw_y)))
             self.screen.blit(self.drone_img, rect_drone)
 
-    def start_solve(self) -> None:
+    def start_solve(self) -> 'Solver':
         self.solver = Solver(self.map_read)
         self.solver.init_drone()
         self.current_turn = 0
@@ -134,28 +134,30 @@ class Visualizeur:
                         offset_y = 2.0 * zoom_avg  # +10 down -10 up
                         tarck_frame = max(5, int(self.rainbow.target_widht
                                           * zoom_avg))  # sync zoom et img
-                        scaled_frame = py.transform.scale(rainbow_frame,
-                                                          (tarck_frame,
-                                                           tarck_frame))
-                        rect_pos_rainbow = scaled_frame.get_rect(  # centrer .png
-                            center=(pos_x + offset_x, pos_y + offset_y))
-                        self.screen.blit(
-                            scaled_frame,
-                            rect_pos_rainbow)
-                        continue
+                        if isinstance(green_frame, py.Surface):
+                            scaled_frame = py.transform.scale(rainbow_frame,
+                                                              (tarck_frame,
+                                                               tarck_frame))
+                            rect_pos_rainbow = scaled_frame.get_rect(
+                                center=(pos_x + offset_x, pos_y + offset_y))
+                            self.screen.blit(
+                                scaled_frame,
+                                rect_pos_rainbow)
+                            continue
                     elif zone.metadata.color == "green":
                         track_frame = max(5, int(self.green.target_widht
                                                  * zoom_avg))
-                        scale_green = py.transform.scale(green_frame,
-                                                         (track_frame,
-                                                          track_frame))
-                        rect_pos_green = scale_green.get_rect(
-                            center=(int(pos_x), int(pos_y)))
-                        self.screen.blit(
-                            scale_green,
-                            rect_pos_green,
-                            special_flags=py.BLEND_ADD)  # blend particule
-                        continue
+                        if isinstance(green_frame, py.Surface):
+                            scale_green = py.transform.scale(green_frame,
+                                                             (track_frame,
+                                                              track_frame))
+                            rect_pos_green = scale_green.get_rect(
+                                center=(int(pos_x), int(pos_y)))
+                            self.screen.blit(
+                                scale_green,
+                                rect_pos_green,
+                                special_flags=py.BLEND_ADD)  # blend particule
+                            continue
                     else:
                         if zone.metadata.color in py.color.THECOLORS:
                             color = zone.metadata.color
@@ -168,8 +170,9 @@ class Visualizeur:
             py.draw.circle(self.screen, color, (pos_x, pos_y), radius_dynamic)
 
     def format_output(self, current_time: int, last_move:
-                      int, move_delay: int) -> str:
+                      int, move_delay: int) -> int:
         if self.sim_solve and current_time - last_move > move_delay:
+            assert self.solver is not None
             if len(self.solver.is_finished) < len(self.map_read.drones):
                 moving, output_format = self.solver.turn()
                 if output_format:
@@ -178,15 +181,15 @@ class Visualizeur:
                 if not moving:
                     self.sim_solve = False
                 if len(self.solver.is_finished) >= len(self.map_read.drones):
-                    print(Fore.GREEN + f"sim finished | count turn ="
-                          f"{self.current_turn}")
                     return
             return current_time
         return last_move
 
     def counter_score(self, height: int, widht: int) -> py.Surface:
-        font_blit = self.font.render(f"turns {self.current_turn}", True, (101, 143, 112))
+        font_blit = self.font.render(f"turns {self.current_turn}",
+                                     True, (101, 143, 112))
         self.screen.blit(font_blit, (height, widht))
+        return font_blit
 
     def start_sim(self) -> None:
         is_drag = False
@@ -216,11 +219,11 @@ class Visualizeur:
                         adj_pos_y = mouse_y - (self.height // 4)
                         x_pos = (adj_pos_x - self.cam_x) / self.zoom
                         y_pos = (adj_pos_y - self.cam_y) / self.zoom
-                        self.zoom += event.y * 5 * self.scroll_speed  # aug speed
+                        self.zoom += event.y * 5 * self.scroll_speed  # speed
                         self.zoom = max(5, self.zoom)  # -- zoom (max)
                         self.zoom = min(445.0, self.zoom)  # ++ zoom
                         self.cam_x = adj_pos_x - (x_pos * self.zoom)
-                        self.cam_y = adj_pos_y - (y_pos * self.zoom)  # track et re calcule
+                        self.cam_y = adj_pos_y - (y_pos * self.zoom)
                     elif event.type == py.MOUSEMOTION:
                         if is_drag:
                             mouse_x, mouse_y = event.pos

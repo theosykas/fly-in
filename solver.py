@@ -1,20 +1,20 @@
 from heapq import heappop, heappush
-from typing import List, Dict, Set
-from read_map import Reader
+from typing import List, Dict, Set, Optional
 from colorama import Fore, Style
+from read_map import Reader
 
 
 class Solver:
     def __init__(self, reader: Reader) -> None:
         self.mem_connection: Dict[str, tuple[str, str]] = {}
         self.wait_restricted: Dict[str, bool] = {}
-        self.path: Dict[str, List[str]] = {}  # drone id + path
+        self.path: Dict[str, List[str]] = {}
         self.occupacy: Dict[str, int] = {}
         self.step: Dict[str, int] = {}
         self.is_finished: Set[str] = set()
         self.reader = reader
 
-    def find_k_path(self, nb_path: int) -> List[List[str]]:
+    def find_k_path(self, nb_path: int) -> List[str]:
         penality_zone: Dict[str, int] = {}
         penality_num: int = 2
         paths: List[str] = []
@@ -22,7 +22,7 @@ class Solver:
             path = self.dijkstra(penality=penality_zone, start_idx=None)
             if not path:
                 break
-            paths.append(path)
+            paths.extend([path])
             # force a trouver un autre chemin en zone blocked
             for inter_zone in path[1:-1]:  # 1 == start -1 == goal
                 penality_zone[inter_zone] = penality_zone.get(
@@ -30,7 +30,8 @@ class Solver:
         return paths
 
     def dijkstra(self, penality: Dict[str, int],
-                 start_idx: str = None) -> List[str]:  # a - c - d - f short path
+                 # a - c - d - f short path
+                 start_idx: Optional[str] = None) -> List[str]:
         if start_idx:
             start_hub = start_idx
         else:
@@ -89,7 +90,7 @@ class Solver:
             print(f'{Fore.RED} Error initialize drones')
         return None
 
-    def turn(self) -> bool:
+    def turn(self) -> tuple[bool, str]:
         turn_output: List[str] = []
         moving = False
         for drone in self.reader.drones:
@@ -113,16 +114,17 @@ class Solver:
             if next_step < len(path):  # step == 2 path[2]
                 next_zone = path[next_step]
                 current_zone = path[current_pos]
-                connection = self.reader.get_connection(current_zone, next_zone)
+                connection = self.reader.get_connection(current_zone,
+                                                        next_zone)
                 max_drones = self.reader.max_drone_cap(next_zone)
                 current_occupacy = self.occupacy.get(next_zone, 0)
 
                 max_link_cap = 1
-                current_transit = 0
+                transit = 0
                 if connection:
                     if connection.metadata:
                         max_link_cap = int(connection.metadata.max_link)
-                    current_transit = len(connection.drones_transit)
+                    transit = len(connection.drones_transit)
 
                 if self.wait_restricted.get(drone.ids, False):
                     self.wait_restricted[drone.ids] = False  # sort du link
@@ -132,11 +134,12 @@ class Solver:
                         connection.drones_transit.remove(drone.ids)
                     self.step[drone.ids] = next_step
                     drone.current_zone = next_zone
-                    turn_output.append(f"{Fore.GREEN + drone.ids}{Style.RESET_ALL}-{next_zone}")
+                    turn_output.append(f"{Fore.GREEN + drone.ids}"
+                                       f"{Style.RESET_ALL}-{next_zone}")
                     moving = True
                     continue
 
-                if current_occupacy < max_drones and current_transit < max_link_cap:
+                if current_occupacy < max_drones and transit < max_link_cap:
                     zone_cost = self.reader.get_zone_type(next_zone)
                     if zone_cost == "restricted":
                         if not self.wait_restricted.get(drone.ids, False):
@@ -152,16 +155,18 @@ class Solver:
                                     current_zone,
                                     next_zone,
                                 )
-                            turn_output.append(f"{Fore.GREEN + drone.ids}{Style.RESET_ALL}-{current_zone}-{next_zone}")
+                            turn_output.append(f"{Fore.GREEN + drone.ids}"
+                                               f"{Style.RESET_ALL}-"
+                                               f"{current_zone}-{next_zone}")
                             moving = True
                             continue
                     else:
-                        # d0 ----> normal zone
                         self.occupacy[current_zone] -= 1
                         self.occupacy[next_zone] = current_occupacy + 1
                         self.step[drone.ids] = next_step
                         drone.current_zone = next_zone
-                        turn_output.append(f"{Fore.GREEN + drone.ids}{Style.RESET_ALL}-{next_zone}")
+                        turn_output.append(f"{Fore.GREEN + drone.ids}"
+                                           f"{Style.RESET_ALL}-{next_zone}")
                         moving = True
                 else:
                     # Drone bloqué par la capacité, mais la simulation continue
