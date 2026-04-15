@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "colorama>=0.4.6",
+    "mypy>=1.20.1",
     "pydantic>=2.12.5",
     "pygame>=2.6.1",
 ]
