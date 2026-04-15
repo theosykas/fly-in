@@ -15,6 +15,8 @@ def main() -> None:
         run_sim = Visualizeur(1200, 600, map_read=reader)
         run_sim.start_sim()
     except Exception as err:
+        import traceback
+        traceback.print_exc()
         print(f'Error: {err}')
 
 

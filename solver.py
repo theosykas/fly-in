@@ -3,6 +3,7 @@ from typing import List, Dict, Set
 from read_map import Reader
 from colorama import Fore, Style
 
+
 class Solver:
     def __init__(self, reader: Reader) -> None:
         self.mem_connection: Dict[str, tuple[str, str]] = {}
@@ -112,8 +113,17 @@ class Solver:
             if next_step < len(path):  # step == 2 path[2]
                 next_zone = path[next_step]
                 current_zone = path[current_pos]
+                connection = self.reader.get_connection(current_zone, next_zone)
                 max_drones = self.reader.max_drone_cap(next_zone)
                 current_occupacy = self.occupacy.get(next_zone, 0)
+
+                max_link_cap = 1
+                current_transit = 0
+                if connection:
+                    if connection.metadata:
+                        max_link_cap = int(connection.metadata.max_link)
+                    current_transit = len(connection.drones_transit)
+
                 if self.wait_restricted.get(drone.ids, False):
                     self.wait_restricted[drone.ids] = False  # sort du link
                     z1, z2 = self.mem_connection.pop(drone.ids)
@@ -125,7 +135,8 @@ class Solver:
                     turn_output.append(f"{Fore.GREEN + drone.ids}{Style.RESET_ALL}-{next_zone}")
                     moving = True
                     continue
-                if current_occupacy < max_drones:
+
+                if current_occupacy < max_drones and current_transit < max_link_cap:
                     zone_cost = self.reader.get_zone_type(next_zone)
                     if zone_cost == "restricted":
                         if not self.wait_restricted.get(drone.ids, False):
@@ -153,6 +164,7 @@ class Solver:
                         turn_output.append(f"{Fore.GREEN + drone.ids}{Style.RESET_ALL}-{next_zone}")
                         moving = True
                 else:
+                    # Drone bloqué par la capacité, mais la simulation continue
                     moving = True
         return moving, " ".join(turn_output)
 

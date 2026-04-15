@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 class MetadataConnection:
     def __init__(self, capacity_link: int = 1) -> None:
-        self.max_link = capacity_link
+        self.max_link: int = capacity_link
 
 
 class MetadataHub:
@@ -18,8 +18,8 @@ class Connection:
     def __init__(self, z_1: str, z_2: str) -> None:
         self.z_1 = z_1
         self.z_2 = z_2
-        self.metadata = None
         self.drones_transit: List[str] = []
+        self.metadata: Optional[MetadataConnection] = None
 
 
 class Zone:
@@ -42,7 +42,7 @@ class Drone:
 
 class Reader:
     def __init__(self, file_path: str):
-        self.connection: List[Connection] = []
+        self.connection: Dict[str, Connection] = {}
         self.zone: Dict[str, Zone] = {}
         self.drones: List[Drone] = []
         self.file_path = file_path
@@ -51,26 +51,31 @@ class Reader:
         self.adj_neigboor: Dict[str, List[str]] = {}
         self.connection_type: Dict[str, str] = {}
 
-    def max_link_cap(self):
-        pass
-
-    def max_drone_cap(self, zone_name: str) -> int:
-        default_cap = 50
-        zone_cap = self.zone.get(zone_name)
-        if zone_cap and zone_cap.metadata:
-            return zone_cap.metadata.max_drones
+    def max_link_cap(self, link_name: str) -> int:
+        default_cap = 1
+        link_capacity = self.connection.get(link_name)
+        if link_capacity and link_capacity.metadata:
+            return int(link_capacity.max_link)
         return default_cap
 
-    def get_neighboor(self, zone_name: str) -> str:
+    def max_drone_cap(self, zone_name: str) -> int:
+        default_cap = 1
+        zone_cap = self.zone.get(zone_name)
+        if zone_cap and zone_cap.metadata:
+            return int(zone_cap.metadata.max_drones)
+        return default_cap
+
+    def get_neighboor(self, zone_name: str) -> List[str]:
         return self.adj_neigboor.get(zone_name, [])
 
     def get_zone_type(self, zone_name: str) -> str:
         return self.zone_type.get(zone_name, "normal")
 
     def get_connection(self, z1: str, z2: str) -> Optional[Connection]:
-        for co in self.connection:
-            if (co.z_1 == z1 and co.z_2 == z2) or (co.z_1 == z2 and co.z_2 == z1):
-                return co
+        if f"{z1}-{z2}" in self.connection:
+            return self.connection[f"{z1}-{z2}"]
+        if f"{z2}-{z1}" in self.connection:
+            return self.connection[f"{z2}-{z1}"]
         return None
 
     def parse_map(self) -> None:
@@ -174,6 +179,7 @@ class Reader:
                             self.adj_neigboor[zone_2].append(zone_1)
                         if zone_2 not in self.adj_neigboor[zone_1]:
                             self.adj_neigboor[zone_1].append(zone_2)
+
                         curr_metadata = MetadataConnection()
                         if metadata:
                             meta_parts = metadata.split()
@@ -181,14 +187,15 @@ class Reader:
                                 if '=' in p:
                                     key, value = p.split('=', 1)
                                     if key == 'max_link_capacity':
-                                        curr_metadata.max_link = value
+                                        curr_metadata.max_link = int(value)
                         if zone_1 in self.zone and zone_2 in self.zone:
                             bidirectional_create = Connection(
                                 z_1=zone_1,
                                 z_2=zone_2)
                             bidirectional_create.metadata = curr_metadata
-                            if bidirectional_create not in self.connection:
-                                self.connection.append(bidirectional_create)
+                            key = f"{zone_1}-{zone_2}"
+                            if key not in self.connection:
+                                self.connection[key] = bidirectional_create
         except FileNotFoundError:
             print('Error file is not found')
         except Exception as e:

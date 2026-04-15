@@ -1,14 +1,15 @@
 from read_map import Reader
+from colorama import Fore
 from solver import Solver
 from typing import List
 import pygame as py
 import math
 import os
-from colorama import Fore
 
 
 class FrameCircle:
-    def __init__(self, path: str, target_width: int, speed_frame: float = 5.5) -> None:
+    def __init__(self, path: str, target_width: int,
+                 speed_frame: float = 5.5) -> None:
         self.path = path
         self.frames: List = []
         self.index_pos: int = 0
@@ -16,6 +17,7 @@ class FrameCircle:
         self.target_widht = target_width
         self.speed = speed_frame
         self.frames = self.load_frames()
+        return None
 
     def load_frames(self) -> list:
         frames = []
@@ -70,6 +72,10 @@ class Visualizeur:
         self.solver = None
         self.current_turn: int = 0
         self.sim_solve: bool = False
+        py.font.init()
+        self.font = py.font.SysFont("Consolas", 15)
+        self.font_x = 9
+        self.font_y = 9
 
     def draw_drone(self):
         for drone in self.map_read.drones:
@@ -82,15 +88,16 @@ class Visualizeur:
                                                          int(draw_y)))
             self.screen.blit(self.drone_img, rect_drone)
 
-    def start_solve(self):
+    def start_solve(self) -> None:
         self.solver = Solver(self.map_read)
         self.solver.init_drone()
         self.current_turn = 0
         self.sim_solve = True
+        return None
 
     def draw_network(self) -> None:
         line_zoom = max(2, int(2 * self.zoom / 90.0))
-        for co in self.map_read.connection:
+        for co in self.map_read.connection.values():
             z1 = self.map_read.zone[co.z_1]
             z2 = self.map_read.zone[co.z_2]
             start_hub = (
@@ -160,19 +167,26 @@ class Visualizeur:
                 color = (85, 118, 171)
             py.draw.circle(self.screen, color, (pos_x, pos_y), radius_dynamic)
 
-    def format_output(self, current_time: int, last_move: int, move_delay: int) -> str:
+    def format_output(self, current_time: int, last_move:
+                      int, move_delay: int) -> str:
         if self.sim_solve and current_time - last_move > move_delay:
             if len(self.solver.is_finished) < len(self.map_read.drones):
                 moving, output_format = self.solver.turn()
                 if output_format:
                     print(output_format)
                     self.current_turn += 1
-                if not moving and len(self.solver.is_finished) >= len(self.map_read.drones):
+                if not moving:
                     self.sim_solve = False
-                    print(Fore.GREEN + f"sim finished | current turn = {self.current_turn}")
+                if len(self.solver.is_finished) >= len(self.map_read.drones):
+                    print(Fore.GREEN + f"sim finished | count turn ="
+                          f"{self.current_turn}")
                     return
             return current_time
         return last_move
+
+    def counter_score(self, height: int, widht: int) -> py.Surface:
+        font_blit = self.font.render(f"turns {self.current_turn}", True, (101, 143, 112))
+        self.screen.blit(font_blit, (height, widht))
 
     def start_sim(self) -> None:
         is_drag = False
@@ -213,12 +227,15 @@ class Visualizeur:
                             self.cam_x = mouse_x + offset_x
                             self.cam_y = mouse_y + offset_y
                         self.mousse_position = event.pos
-                last_move = self.format_output(current_time=current_time, last_move=last_move, move_delay=move_delay)
+                last_move = self.format_output(current_time=current_time,
+                                               last_move=last_move,
+                                               move_delay=move_delay)
                 self.width, self.height = self.screen.get_size()  # RESIZE
                 self.screen.fill(self.BG_COLOR)
                 self.draw_network()
                 self.draw_circle()
                 self.draw_drone()
+                self.counter_score(self.font_x, self.font_y)
                 py.display.flip()
                 self.clock_fps.tick(60)
             py.quit()
