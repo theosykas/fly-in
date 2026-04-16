@@ -82,7 +82,7 @@ To enhance user experience, `visualizeur.py` parses map metadata (like `[color=r
 
 ---
 
-## 5. Resources & References
+## 5. Resources
 * **Graph Theory Documentation:** References to GeeksForGeeks for Dijkstra's Algorithm and Yen's K-Shortest Path implementations.
 * **PEP Documentation:** Adherence to PEP 257 for docstrings and PEP 484 for `mypy` type hinting.
 * **AI Usage:** AI was utilized to brainstorm edge cases for parser error handling, refine the English documentation structure for clarity, and conceptualize the weighting system for Priority vs. Restricted zones within Yen's algorithm.
