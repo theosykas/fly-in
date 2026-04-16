@@ -292,7 +292,7 @@ class Reader:
                                            "start_hub",
                                            "end_hub")
         valid_first_line: bool = False
-
+        delayed_connection = []
         try:
             with open(self.file_path, 'r') as file:
                 for line_nb, line in enumerate(file, start=1):
@@ -312,10 +312,13 @@ class Reader:
                     elif line.startswith(valid_hub):
                         self.parse_hub(line)
                     elif line.startswith("connection:"):
-                        self.parse_connection(line)
+                        delayed_connection.append((line_nb, line))
                     else:
                         format = line.split(':')[0]
                         raise ValueError(f'unknow format "{format}" directive')
+                for l_nb, l_content in delayed_connection:
+                    line_nb = l_nb
+                    self.parse_connection(l_content)
             self.valide_pos()
         except FileNotFoundError:
             print('Error file is not found')
