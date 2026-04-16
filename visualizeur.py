@@ -10,7 +10,7 @@ class FrameCircle:
     def __init__(self, path: str, target_width: int,
                  speed_frame: float = 5.5) -> None:
         self.path = path
-        self.frames: List[List[int]] = []
+        self.frames: List[py.Surface] = []
         self.index_pos: int = 0
         self.count_frames: int = 0
         self.target_widht = target_width
@@ -33,15 +33,14 @@ class FrameCircle:
                     for y in range(height):
                         r, g, b, _ = img.get_at((x, y))
                         if r < tolerence and g < tolerence and b < tolerence:
-                            img.set_at((x, y), (r, g, b, 0))  # trasparant
+                            img.set_at((x, y), (r, g, b, 0))
                 frames.append(img)
         return frames
 
-    def update_frames(self) -> List[int]:
+    def update_frames(self) -> py.Surface:
         self.count_frames += 1
         if self.count_frames >= self.speed:
             self.count_frames = 0
-            # reset a 0
             self.index_pos = (self.index_pos + 1) % len(self.frames)
         return self.frames[self.index_pos]
 
@@ -60,7 +59,7 @@ class Visualizeur:
         py.display.set_icon(icon)
         self.zoom: float = 90.0
         self.scroll_speed: float = 8.0
-        self.BG_COLOR: tuple[int, int, int] = ((30, 30, 46))  # cattpucin
+        self.BG_COLOR: tuple[int, int, int] = ((30, 30, 46))
         self.running_mode = True
         self.rainbow = FrameCircle("rainbow_texture", 45, speed_frame=2.5)
         self.green = FrameCircle("green_texture", 42, speed_frame=1.5)
@@ -128,10 +127,10 @@ class Visualizeur:
             if zone.metadata:
                 try:
                     if zone.metadata.color == "rainbow":
-                        offset_x = 15.0 * zoom_avg  # +10 == r -10 == l
-                        offset_y = 2.0 * zoom_avg  # +10 down -10 up
+                        offset_x = 15.0 * zoom_avg
+                        offset_y = 2.0 * zoom_avg
                         tarck_frame = max(5, int(self.rainbow.target_widht
-                                          * zoom_avg))  # sync zoom et img
+                                          * zoom_avg))
                         if isinstance(green_frame, py.Surface):
                             scaled_frame = py.transform.scale(rainbow_frame,
                                                               (tarck_frame,
@@ -154,14 +153,13 @@ class Visualizeur:
                             self.screen.blit(
                                 scale_green,
                                 rect_pos_green,
-                                special_flags=py.BLEND_ADD)  # blend particule
+                                special_flags=py.BLEND_ADD)
                             continue
                     else:
                         if zone.metadata.color in py.color.THECOLORS:
                             color = zone.metadata.color
                 except ValueError:
-                    pass  # si non color default
-            # distance = √(dist_x² + dist_y²) hypot
+                    pass
             is_hooverd = math.hypot(dist_x, dist_y) < radius_dynamic
             if is_hooverd:
                 color = (85, 118, 171)
@@ -217,9 +215,9 @@ class Visualizeur:
                         adj_pos_y = mouse_y - (self.height // 4)
                         x_pos = (adj_pos_x - self.cam_x) / self.zoom
                         y_pos = (adj_pos_y - self.cam_y) / self.zoom
-                        self.zoom += event.y * 5 * self.scroll_speed  # speed
-                        self.zoom = max(5, self.zoom)  # -- zoom (max)
-                        self.zoom = min(445.0, self.zoom)  # ++ zoom
+                        self.zoom += event.y * 5 * self.scroll_speed
+                        self.zoom = max(5, self.zoom)
+                        self.zoom = min(445.0, self.zoom)
                         self.cam_x = adj_pos_x - (x_pos * self.zoom)
                         self.cam_y = adj_pos_y - (y_pos * self.zoom)
                     elif event.type == py.MOUSEMOTION:
@@ -231,7 +229,7 @@ class Visualizeur:
                 last_move = self.format_output(current_time=current_time,
                                                last_move=last_move,
                                                move_delay=move_delay)
-                self.width, self.height = self.screen.get_size()  # RESIZE
+                self.width, self.height = self.screen.get_size()
                 self.screen.fill(self.BG_COLOR)
                 self.draw_network()
                 self.draw_circle()

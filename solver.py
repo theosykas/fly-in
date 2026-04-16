@@ -97,21 +97,21 @@ class Solver:
             if drone.ids in self.is_finished:
                 continue
 
-            if self.step[drone.ids] < 0:  # step == -i (d0->d1->d2)
-                self.step[drone.ids] += 1  # step (-) ++
+            if self.step[drone.ids] < 0:
+                self.step[drone.ids] += 1
                 moving = True
-                continue  # step == 0 on lanc
+                continue
 
-            path = self.path.get(drone.ids, [])  # [start, gate_1 ....]
+            path = self.path.get(drone.ids, [])
             current_pos = self.step[drone.ids]
-            next_step = current_pos + 1  # prochaine case
+            next_step = current_pos + 1
 
             if next_step >= len(path):
                 self.is_finished.add(drone.ids)
                 self.occupacy[path[current_pos]] -= 1
                 continue
 
-            if next_step < len(path):  # step == 2 path[2]
+            if next_step < len(path):
                 next_zone = path[next_step]
                 current_zone = path[current_pos]
                 connection = self.reader.get_connection(current_zone,
@@ -127,7 +127,7 @@ class Solver:
                     transit = len(connection.drones_transit)
 
                 if self.wait_restricted.get(drone.ids, False):
-                    self.wait_restricted[drone.ids] = False  # sort du link
+                    self.wait_restricted[drone.ids] = False
                     z1, z2 = self.mem_connection.pop(drone.ids)
                     connection = self.reader.get_connection(z1, z2)
                     if connection:
@@ -171,30 +171,5 @@ class Solver:
                                            f"{Style.RESET_ALL}-{next_zone}")
                         moving = True
                 else:
-                    # Drone bloqué par la capacité, mais la simulation continue
                     moving = True
         return moving, " ".join(turn_output)
-
-# heappush: Ajoute un élément à la file d'attente avec sa priorité associée.
-
-# path [0 = start, 1 = hell1, 2 == maze]
-# step == 2 path[2 == hell1]
-# 2 = 1 == 3
-# next_step < len(path)  3 < 5
-# drone.current_zone = path[next_step] path[3]
-
-# d step[] current_zone state
-# --1
-# d0 0    start         is_fly
-# d1 -1   start         wait
-# d2 -2   start         wait
-
-# --2
-# d0 1    gate_hell1    is_fly
-# d1 0    start         is_fly
-# d2 -1   start         wait
-
-# --3
-# d0 2   maze_1    is_fly
-# d1 1   gate_1    is_fly
-# d2 0   start     is_fly
