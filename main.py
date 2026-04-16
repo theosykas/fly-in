@@ -7,7 +7,7 @@ def main() -> None:
     try:
         if len(sys.argv) < 2:
             print('Usage: choose your dir and map <PATH>')
-            sys.exit(1)
+            sys.exit(0)
         map_dir = sys.argv[1]
         reader = Reader(map_dir)
         reader.parse_map()

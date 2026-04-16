@@ -9,7 +9,7 @@ install:
 
 run:
 	@echo 'start fly simulation'
-	$(PYTHON)
+	$(PYTHON) main.py
 
 clean:
 	@echo 'remove all artifacts'
