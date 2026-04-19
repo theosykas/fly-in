@@ -5,7 +5,29 @@ from read_map import Reader
 
 
 class Solver:
+    """Handles pathfinding and drone movement simulation.
+
+         Attributes:
+             mem_connection (Dict[str, tuple[str, str]]): Stores temporary
+                 connection data for drones in transit.
+             wait_restricted (Dict[str, bool]): Tracks if a drone is currently
+                 waiting in a restricted zone.
+             path (Dict[str, List[str]]): Maps drone IDs to their assigned
+             paths.
+             occupacy (Dict[str, int]): Tracks current drone count in each
+             zone.
+             step (Dict[str, int]): Tracks the current path index for each
+             drone.
+             is_finished (Set[str]): Set of drone IDs that have reached the
+             destination.
+             reader (Reader): Reference to the map reader object.
+     """
     def __init__(self, reader: Reader) -> None:
+        """Initializes the solver with map data.
+
+             Args:
+                 reader (Reader): The parsed map data.
+         """
         self.mem_connection: Dict[str, tuple[str, str]] = {}
         self.wait_restricted: Dict[str, bool] = {}
         self.path: Dict[str, List[str]] = {}
@@ -15,6 +37,15 @@ class Solver:
         self.reader = reader
 
     def find_k_path(self, nb_path: int) -> List[List[str]]:
+        """Finds multiple paths by applying penalties to used zones.
+
+             Args:
+                 nb_path (int): Number of paths to attempt to find.
+
+             Returns:
+                 List[List[str]]: A list of paths, where each path is a list
+                 of zone names.
+         """
         penality_zone: Dict[str, int] = {}
         penality_num: int = 2
         paths: List[List[str]] = []
@@ -30,8 +61,18 @@ class Solver:
         return paths
 
     def dijkstra(self, penality: Dict[str, int],
-                 # a - c - d - f short path
                  start_idx: Optional[str] = None) -> List[str]:
+        """Implements Dijkstra's algorithm to find the shortest path.
+
+             Args:
+                 penality (Dict[str, int]): Penalties applied to zone weights.
+                 start_idx (Optional[str]): Starting zone name. Defaults to
+                 start_zone.
+
+             Returns:
+                 List[str]: The shortest path as a list of zone names, or
+                 empty if no path.
+             """
         if start_idx:
             start_hub = start_idx
         else:
@@ -71,6 +112,11 @@ class Solver:
         return []
 
     def init_drone(self) -> None:
+        """Initializes drones by assigning paths and setting starting
+        positions.
+
+            Finds available paths and distributes drones across them.
+         """
         try:
             paths = self.find_k_path(nb_path=2)
             if not paths:
@@ -91,6 +137,18 @@ class Solver:
         return None
 
     def turn(self) -> tuple[bool, str]:
+        """Executes one simulation turn for all drones.
+
+            Manages drone movement logic, capacity constraints, and restricted
+            zones.
+
+            Returns:
+                tuple[bool, str]: A tuple containing:
+                    - bool: True if at least one drone moved or is still
+                    active.
+                    - str: A formatted string representing movements in this
+                    turn.
+         """
         turn_output: List[str] = []
         moving = False
         for drone in self.reader.drones:
