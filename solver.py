@@ -54,8 +54,8 @@ class Solver:
             if not path:
                 break
             paths.append(path)
-            # force a trouver un autre chemin en zone blocked
-            for inter_zone in path[1:-1]:  # 1 == start -1 == goal
+
+            for inter_zone in path[1:-1]:
                 penality_zone[inter_zone] = penality_zone.get(
                     inter_zone, 0) + penality_num
         return paths
@@ -78,30 +78,29 @@ class Solver:
         else:
             start_hub = self.reader.start_zone
         end_hub = self.reader.end_zone
-        # 0 total_cost, start = current_node [start] = path parcourru
         priority_queue: List[tuple[int, str, List[str]]] = [(0,
                                                              start_hub,
                                                              [start_hub])]
         visited: Set[str] = set()
-        while priority_queue:  # non fini
+        while priority_queue:
             current_cost, current_node, find_path = heappop(
                 priority_queue
-            )  # heappop = min value path - couteux
+            )
             if current_node in visited:
-                continue  # pass node visited
+                continue
             if current_node == end_hub:
                 return find_path
             visited.add(current_node)
             for neighboor in self.reader.get_neighboor(current_node):
+                if self.reader.get_zone_type(neighboor) == "blocked":
+                    continue
                 cost_zone = 10
                 if neighboor not in visited:
                     zone_type = self.reader.get_zone_type(neighboor)
-                    if zone_type == "blocked":
-                        continue
-                    elif zone_type == "restricted":
+                    if zone_type == "restricted":
                         cost_zone = 20
                     elif zone_type == "priority":
-                        cost_zone = 9  # augmente le poids < normal cost
+                        cost_zone = 9
                     cost_zone += penality.get(neighboor, 0)
                     heappush(
                         priority_queue,

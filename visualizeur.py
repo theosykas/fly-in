@@ -51,7 +51,7 @@ class FrameCircle:
             if f.endswith(".png"):
                 img = py.image.load(os.path.join(self.path, f)).convert_alpha()
                 get_bg_orbe = img.get_at((0, 0))
-                img.set_colorkey(get_bg_orbe)  # black transparent
+                img.set_colorkey(get_bg_orbe)
                 ratio = img.get_width() / img.get_height()
                 target = int(self.target_widht / ratio)
                 img = py.transform.scale(img, (self.target_widht, target))
